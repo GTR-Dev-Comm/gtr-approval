@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>지티알 전자결의</title>
+<style>
+  :root {
+    --ink: #1b2621; --paper: #f6f5f0; --card: #ffffff; --line: #e2e0d6;
+    --green-deep: #1f4d3a; --green: #2f7a54; --green-soft: #e7f0e9;
+    --amber: #c98a2c; --amber-soft: #fbf1de;
+    --red: #b5453f; --red-soft: #fbeceb;
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Malgun Gothic", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; background: var(--card); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .mark {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--green), var(--green-deep));
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px;
+  }
+  .brand .name { font-size: 14px; font-weight: 700; }
+  .who { font-size: 13px; color: #6b7a71; }
+  .logout { font-size: 12px; color: #9aa79e; cursor: pointer; margin-left: 12px; text-decoration: underline; }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+
+  .tabs { display: flex; gap: 4px; background: var(--green-soft); padding: 4px; border-radius: 10px; margin-bottom: 20px; }
+  .tab { flex: 1; text-align: center; padding: 9px 0; border-radius: 7px; font-size: 13px; font-weight: 600; color: #4c6a58; cursor: pointer; }
+  .tab.active { background: var(--green-deep); color: #fff; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; color: #33413a; }
+  input, select, textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; background: #fbfbf9; color: var(--ink); outline: none; font-family: inherit;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { border-color: var(--green); background: #fff; }
+
+  button.primary {
+    padding: 11px 18px; border: none; border-radius: 9px; background: var(--green-deep);
+    color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  button.ghost {
+    padding: 9px 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff;
+    color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  button.reject { background: var(--red-soft); color: var(--red); border: none; }
+  button.approve { background: var(--green-deep); color: #fff; border: none; }
+
+  .file-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .file-list { font-size: 12px; color: #6b7a71; margin-top: 6px; }
+
+  .doc {
+    border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; background: #fff;
+  }
+  .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .doc-title { font-size: 14px; font-weight: 700; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .badge.pending { background: var(--amber-soft); color: var(--amber); }
+  .badge.approved { background: var(--green-soft); color: var(--green-deep); }
+  .badge.rejected { background: var(--red-soft); color: var(--red); }
+  .doc-meta { font-size: 12px; color: #9aa79e; margin-top: 4px; }
+  .doc-steps { margin-top: 10px; font-size: 12px; color: #4c6a58; display: flex; gap: 6px; flex-wrap: wrap; }
+  .step-chip { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .step-chip.approved { border-color: var(--green); color: var(--green-deep); }
+  .step-chip.rejected { border-color: var(--red); color: var(--red); }
+  .step-chip.waiting { border-color: var(--amber); color: var(--amber); }
+
+  .empty { text-align: center; color: #9aa79e; padding: 40px 0; font-size: 13px; }
+  .msg { margin-top: 12px; font-size: 13px; padding: 10px 12px; border-radius: 8px; display: none; }
+  .msg.show { display: block; }
+  .msg.error { background: var(--red-soft); color: var(--red); }
+  .msg.ok { background: var(--green-soft); color: var(--green-deep); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="mark">GTR</div><div class="name">전자결의</div></div>
+  <div class="who"><span id="who-name"></span><span class="logout" id="logout-btn">로그아웃</span></div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-panel="new">새 문서 작성</div>
+    <div class="tab" data-panel="my">내 문서</div>
+    <div class="tab" data-panel="approve">결재할 문서</div>
+  </div>
+
+  <!-- 새 문서 작성 -->
+  <div class="panel active" id="panel-new">
+    <div class="card">
+      <label>문서 종류</label>
+      <select id="doc-type-select"></select>
+      <div id="dynamic-fields"></div>
+      <div id="attachment-area" style="display:none;">
+        <label>영수증 첨부 (사진 또는 PDF, 여러 장 가능)</label>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,application/pdf" multiple />
+        <div class="file-list" id="file-list"></div>
+      </div>
+      <button class="primary" id="submit-btn" style="margin-top:18px;">상신하기</button>
+      <div class="msg" id="new-msg"></div>
+    </div>
+  </div>
+
+  <!-- 내 문서 -->
+  <div class="panel" id="panel-my">
+    <div id="my-list"></div>
+  </div>
+
+  <!-- 결재할 문서 -->
+  <div class="panel" id="panel-approve">
+    <div id="approve-list"></div>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('gtr_approval_token');
+  const employeeRaw = localStorage.getItem('gtr_approval_employee');
+  if (!token) window.location.href = '/index.html';
+  const employee = employeeRaw ? JSON.parse(employeeRaw) : {};
+  document.getElementById('who-name').textContent = (employee.name || '') + '님';
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    localStorage.removeItem('gtr_approval_token');
+    localStorage.removeItem('gtr_approval_employee');
+    window.location.href = '/index.html';
+  });
+
+  function authHeaders(json) {
+    const h = { Authorization: 'Bearer ' + token };
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
+
+  // ---------- 탭 전환 ----------
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.panel');
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.classList.remove('active'));
+      panels.forEach((p) => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+      if (tab.dataset.panel === 'my') loadMyDocuments();
+      if (tab.dataset.panel === 'approve') loadPendingApprovals();
+    });
+  });
+
+  // ---------- 새 문서 작성 ----------
+  let docTypes = [];
+  let selectedFiles = [];
+
+  async function loadDocTypes() {
+    const res = await fetch('/api/doc-types', { headers: authHeaders() });
+    const data = await res.json();
+    docTypes = data.doc_types || [];
+    const sel = document.getElementById('doc-type-select');
+    sel.innerHTML = '';
+    docTypes.forEach((dt) => {
+      const opt = document.createElement('option');
+      opt.value = dt.code;
+      opt.textContent = dt.name;
+      sel.appendChild(opt);
+    });
+    renderFields();
+  }
+
+  function renderFields() {
+    const code = document.getElementById('doc-type-select').value;
+    const dt = docTypes.find((d) => d.code === code);
+    const area = document.getElementById('dynamic-fields');
+    area.innerHTML = '';
+    if (!dt) return;
+    (dt.form_schema.fields || []).forEach((f) => {
+      const label = document.createElement('label');
+      label.textContent = f.label + (f.required ? ' *' : '');
+      area.appendChild(label);
+
+      let input;
+      if (f.type === 'textarea') {
+        input = document.createElement('textarea');
+      } else if (f.type === 'select') {
+        input = document.createElement('select');
+        (f.options || []).forEach((o) => {
+          const opt = document.createElement('option');
+          opt.value = o; opt.textContent = o;
+          input.appendChild(opt);
+        });
+      } else {
+        input = document.createElement('input');
+        input.type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+      }
+      input.id = 'field-' + f.key;
+      input.dataset.key = f.key;
+      area.appendChild(input);
+    });
+
+    const attArea = document.getElementById('attachment-area');
+    attArea.style.display = dt.form_schema.attachments ? 'block' : 'none';
+    selectedFiles = [];
+    document.getElementById('file-list').textContent = '';
+    document.getElementById('file-input').value = '';
+  }
+
+  document.getElementById('doc-type-select').addEventListener('change', renderFields);
+
+  document.getElementById('file-input').addEventListener('change', (e) => {
+    selectedFiles = Array.from(e.target.files);
+    document.getElementById('file-list').textContent =
+      selectedFiles.length > 0 ? selectedFiles.map((f) => f.name).join(', ') + ' 선택됨' : '';
+  });
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function showMsg(id, text, ok) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'msg show ' + (ok ? 'ok' : 'error');
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('submit-btn');
+    const code = document.getElementById('doc-type-select').value;
+    const dt = docTypes.find((d) => d.code === code);
+    if (!dt) return;
+
+    const content = {};
+    let missing = false;
+    (dt.form_schema.fields || []).forEach((f) => {
+      const el = document.getElementById('field-' + f.key);
+      const val = el ? el.value : '';
+      if (f.required && !val) missing = true;
+      content[f.key] = val;
+    });
+    if (missing) return showMsg('new-msg', '필수 항목을 모두 입력해주세요.', false);
+    if (dt.form_schema.attachments && dt.form_schema.attachments.required && selectedFiles.length === 0) {
+      return showMsg('new-msg', '영수증을 최소 1개 이상 첨부해주세요.', false);
+    }
+
+    const title = `${dt.name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
+
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/documents/create', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ doc_type_code: code, title, content }),
+      });
+      const data = await res.json();
+      if (!res.ok) return showMsg('new-msg', data.error || '상신에 실패했습니다.', false);
+
+      // 첨부파일 업로드
+      for (const file of selectedFiles) {
+        const base64 = await fileToBase64(file);
+        const fileType = file.type === 'application/pdf' ? 'pdf' : 'image';
+        await fetch('/api/attachments/upload', {
+          method: 'POST',
+          headers: authHeaders(true),
+          body: JSON.stringify({
+            document_id: data.document_id,
+            file_name: file.name,
+            file_type: fileType,
+            data_base64: base64,
+          }),
+        });
+      }
+
+      showMsg('new-msg', '상신이 완료되었습니다.', true);
+      selectedFiles = [];
+      document.getElementById('file-list').textContent = '';
+      document.getElementById('file-input').value = '';
+      (dt.form_schema.fields || []).forEach((f) => {
+        const el = document.getElementById('field-' + f.key);
+        if (el) el.value = '';
+      });
+    } catch (e) {
+      showMsg('new-msg', '네트워크 오류가 발생했습니다.', false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- 내 문서 ----------
+  const statusLabel = { pending: '진행중', approved: '승인완료', rejected: '반려' };
+  const stepStatusLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
+
+  async function loadMyDocuments() {
+    const listEl = document.getElementById('my-list');
+    listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
+    const res = await fetch('/api/documents/my', { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
+    if (!data.documents || data.documents.length === 0) {
+      listEl.innerHTML = '<div class="empty">아직 상신한 문서가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = data.documents.map((d) => `
+      <div class="doc">
+        <div class="doc-top">
+          <div class="doc-title">${d.title}</div>
+          <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+        </div>
+        <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+        <div class="doc-steps">
+          ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ---------- 결재할 문서 ----------
+  async function loadPendingApprovals() {
+    const listEl = document.getElementById('approve-list');
+    listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
+    const res = await fetch('/api/documents/pending', { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
+    if (!data.pending || data.pending.length === 0) {
+      listEl.innerHTML = '<div class="empty">결재할 문서가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = data.pending.map((s) => {
+      const doc = s.approval_documents;
+      const drafterName = doc && doc.approval_employees ? doc.approval_employees.name : '';
+      const typeName = doc && doc.approval_doc_types ? doc.approval_doc_types.name : '';
+      const contentLines = doc ? Object.entries(doc.content || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') : '';
+      return `
+        <div class="doc">
+          <div class="doc-top">
+            <div class="doc-title">${doc ? doc.title : ''}</div>
+            <div class="badge pending">${s.step_name}</div>
+          </div>
+          <div class="doc-meta">${typeName} · 기안자: ${drafterName}</div>
+          <div class="doc-meta">${contentLines}</div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <button class="approve" onclick="act(${s.id}, 'approve')">승인</button>
+            <button class="reject" onclick="act(${s.id}, 'reject')">반려</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function act(step_id, action) {
+    let comment = null;
+    if (action === 'reject') {
+      comment = prompt('반려 사유를 입력해주세요 (선택)');
+    }
+    const res = await fetch('/api/documents/act', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({ step_id, action, comment }),
+    });
+    if (res.ok) loadPendingApprovals();
+    else alert('처리 중 오류가 발생했습니다.');
+  }
+
+  loadDocTypes();
+</script>
+</body>
+</html>

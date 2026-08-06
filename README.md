@@ -39,8 +39,28 @@ insert into approval_departments (name) values
 2. 직원에게 가입 신청 링크 공유 → 가입 신청
 3. `/admin.html`에서 mcjjang이 승인
 
+## 3단계 (완료) — 문서 작성 / 결재 화면
+새로 추가된 파일:
+- `public/dashboard.html` : 로그인 후 메인 화면 (새 문서 작성 / 내 문서 / 결재할 문서 탭)
+- `api/doc-types.js` : 문서 종류 조회
+- `api/documents/create.js` : 문서 상신 (결재라인 자동 지정: 담당팀장 → 회계팀장)
+- `api/documents/my.js` : 내가 상신한 문서 목록
+- `api/documents/pending.js` : 내가 결재해야 할 문서 목록
+- `api/documents/act.js` : 승인/반려 처리
+- `api/attachments/upload.js` : 영수증 등 첨부파일 업로드 (Supabase Storage)
+- `api/attachments/list.js` : 첨부파일 다운로드 링크 조회
+
+### 결재라인이 자동으로 정해지는 방식
+- 1차: 기안자의 소속 부서에서 `is_team_leader = true`인 직원
+- 2차: `회계팀` 부서에서 `is_team_leader = true`인 직원
+- **아직 팀장을 지정 안 하셨다면** 둘 다 자동으로 mcjjang(관리자) 계정이 승인자가 됩니다. 즉 팀장 지정 전에도 시스템은 바로 쓸 수 있고, 나중에 Supabase Table Editor에서 `approval_employees` 테이블의 `is_team_leader`를 체크해주시면 그 사람이 자동으로 승인자가 됩니다.
+
+### 적용 방법
+1. 새로 추가된 파일들을 기존 GitHub 저장소(`gtr-approval`)에 업로드 (같은 경로에 있는 파일은 자동으로 덮어써집니다)
+2. Vercel이 자동으로 다시 배포합니다 (GitHub 연결되어 있으면 별도로 Redeploy 안 눌러도 됩니다)
+3. 배포 끝나면 로그인 후 자동으로 `/dashboard.html`로 이동 → 새 문서 작성 탭에서 휴가신청서/지출결의서 작성 테스트
+
 ## 다음 단계 (아직 안 만든 것)
-- 휴가신청서/지출결의서 작성 화면 (기안 화면)
-- 결재라인에 따른 승인 화면 (팀장 → 회계팀)
-- 지출결의서 영수증 첨부 (Supabase Storage 연동)
-- 웹푸시 알림
+- 관리자용 직원/부서/팀장 관리 화면 (지금은 Supabase Table Editor에서 직접 수정)
+- 웹푸시 알림 (지금은 알림이 DB에는 쌓이지만 화면에 푸시로 뜨지는 않음)
+- 문서 상세/인쇄(PDF) 화면

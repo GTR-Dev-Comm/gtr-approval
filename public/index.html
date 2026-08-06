@@ -220,6 +220,7 @@
       const data = await res.json();
       if (!res.ok) return showMsg('login-msg', data.error || '로그인에 실패했습니다.', false);
       localStorage.setItem('gtr_approval_token', data.token);
+      localStorage.setItem('gtr_approval_employee', JSON.stringify(data.employee));
       showMsg('login-msg', '로그인되었습니다. 이동 중...', true);
       // 다음 단계에서 만들 결재함 화면으로 이동 예정
       setTimeout(() => { window.location.href = '/dashboard.html'; }, 600);
