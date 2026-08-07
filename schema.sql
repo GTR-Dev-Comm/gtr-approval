@@ -108,7 +108,7 @@ insert into approval_doc_types (code, name, form_schema) values
   "fields": [
     {"key": "expense_date", "label": "지출일", "type": "date", "required": true},
     {"key": "amount", "label": "금액", "type": "number", "required": true},
-    {"key": "category", "label": "항목", "type": "select", "options": ["출장비", "소모품비", "접대비", "기타"], "required": true},
+    {"key": "category", "label": "항목", "type": "text", "required": true},
     {"key": "description", "label": "내용", "type": "textarea", "required": true}
   ],
   "attachments": {
