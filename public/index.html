@@ -222,6 +222,13 @@
     }
   })();
 
+  document.getElementById('login-id').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('login-btn').click();
+  });
+  document.getElementById('login-pw').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('login-btn').click();
+  });
+
   document.getElementById('login-btn').addEventListener('click', async () => {
     const btn = document.getElementById('login-btn');
     const login_id = document.getElementById('login-id').value.trim();
