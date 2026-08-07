@@ -149,6 +149,10 @@
       <input id="login-id" autocomplete="username" />
       <label>비밀번호</label>
       <input id="login-pw" type="password" autocomplete="current-password" />
+      <div style="display:flex; align-items:center; gap:6px; margin-top:12px;">
+        <input type="checkbox" id="remember-me" style="width:auto;" />
+        <label for="remember-me" style="margin:0; font-weight:400; font-size:13px; color:#4c6a58; cursor:pointer;">아이디/비밀번호 저장</label>
+      </div>
       <button class="primary" id="login-btn">로그인</button>
       <div class="msg" id="login-msg"></div>
     </div>
@@ -205,6 +209,19 @@
     })
     .catch(() => {});
 
+  // 저장된 아이디/비밀번호 자동 채우기 (기기에만 저장되며, 공용 PC에서는 체크하지 않는 것을 권장)
+  (function restoreSaved() {
+    const saved = localStorage.getItem('gtr_approval_saved_login');
+    if (saved) {
+      try {
+        const { login_id, password } = JSON.parse(saved);
+        document.getElementById('login-id').value = login_id || '';
+        document.getElementById('login-pw').value = password || '';
+        document.getElementById('remember-me').checked = true;
+      } catch (e) {}
+    }
+  })();
+
   document.getElementById('login-btn').addEventListener('click', async () => {
     const btn = document.getElementById('login-btn');
     const login_id = document.getElementById('login-id').value.trim();
@@ -221,6 +238,11 @@
       if (!res.ok) return showMsg('login-msg', data.error || '로그인에 실패했습니다.', false);
       localStorage.setItem('gtr_approval_token', data.token);
       localStorage.setItem('gtr_approval_employee', JSON.stringify(data.employee));
+      if (document.getElementById('remember-me').checked) {
+        localStorage.setItem('gtr_approval_saved_login', JSON.stringify({ login_id, password }));
+      } else {
+        localStorage.removeItem('gtr_approval_saved_login');
+      }
       showMsg('login-msg', '로그인되었습니다. 이동 중...', true);
       // 다음 단계에서 만들 결재함 화면으로 이동 예정
       setTimeout(() => { window.location.href = '/dashboard.html'; }, 600);

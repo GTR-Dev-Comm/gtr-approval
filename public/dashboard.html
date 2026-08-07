@@ -80,6 +80,15 @@
   .msg.show { display: block; }
   .msg.error { background: var(--red-soft); color: var(--red); }
   .msg.ok { background: var(--green-soft); color: var(--green-deep); }
+  .item-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-top: 12px; background: #fbfbf9; position: relative;
+  }
+  .item-card .item-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 4px; }
+  .item-card .item-num { font-size: 12px; font-weight: 700; color: var(--green-deep); }
+  .item-remove { font-size: 12px; color: var(--red); cursor: pointer; background:none; border:none; padding:0; }
+  #preview-body .p-item { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  #preview-body .p-row { display:flex; justify-content:space-between; gap:10px; padding: 3px 0; }
+  #preview-body .p-row .k { color:#7a8a80; }
 </style>
 </head>
 <body>
@@ -100,14 +109,33 @@
     <div class="card">
       <label>문서 종류</label>
       <select id="doc-type-select"></select>
-      <div id="dynamic-fields"></div>
+
+      <div id="items-container"></div>
+      <button class="ghost" id="add-item-btn" style="margin-top:10px;">+ 항목 추가</button>
+
       <div id="attachment-area" style="display:none;">
         <label>영수증 첨부 (사진 또는 PDF, 여러 장 가능)</label>
         <input type="file" id="file-input" accept="image/jpeg,image/png,application/pdf" multiple />
         <div class="file-list" id="file-list"></div>
       </div>
-      <button class="primary" id="submit-btn" style="margin-top:18px;">상신하기</button>
+
+      <div style="display:flex; gap:8px; margin-top:18px;">
+        <button class="ghost" id="preview-btn">미리보기</button>
+        <button class="primary" id="submit-btn" disabled title="먼저 미리보기를 확인해주세요">상신하기</button>
+      </div>
       <div class="msg" id="new-msg"></div>
+    </div>
+  </div>
+
+  <!-- 미리보기 모달 -->
+  <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(27,38,33,.45); z-index:50; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:14px; max-width:520px; width:100%; max-height:80vh; overflow-y:auto; padding:22px;">
+      <h2 style="font-size:16px; margin:0 0 14px;">문서 미리보기</h2>
+      <div id="preview-body" style="font-size:13px; line-height:1.7;"></div>
+      <div style="display:flex; gap:8px; margin-top:20px;">
+        <button class="ghost" id="preview-close-btn">수정하기</button>
+        <button class="primary" id="preview-submit-btn">이 내용으로 상신하기</button>
+      </div>
     </div>
   </div>
 
@@ -158,6 +186,7 @@
   // ---------- 새 문서 작성 ----------
   let docTypes = [];
   let selectedFiles = [];
+  let items = [{}]; // 각 항목의 입력값 { fieldKey: value }
 
   async function loadDocTypes() {
     const res = await fetch('/api/doc-types', { headers: authHeaders() });
@@ -171,52 +200,94 @@
       opt.textContent = dt.name;
       sel.appendChild(opt);
     });
-    renderFields();
+    resetItems();
   }
 
-  function renderFields() {
+  function currentDocType() {
     const code = document.getElementById('doc-type-select').value;
-    const dt = docTypes.find((d) => d.code === code);
-    const area = document.getElementById('dynamic-fields');
-    area.innerHTML = '';
-    if (!dt) return;
-    (dt.form_schema.fields || []).forEach((f) => {
-      const label = document.createElement('label');
-      label.textContent = f.label + (f.required ? ' *' : '');
-      area.appendChild(label);
+    return docTypes.find((d) => d.code === code);
+  }
 
-      let input;
-      if (f.type === 'textarea') {
-        input = document.createElement('textarea');
-      } else if (f.type === 'select') {
-        input = document.createElement('select');
-        (f.options || []).forEach((o) => {
-          const opt = document.createElement('option');
-          opt.value = o; opt.textContent = o;
-          input.appendChild(opt);
-        });
-      } else {
-        input = document.createElement('input');
-        input.type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
-      }
-      input.id = 'field-' + f.key;
-      input.dataset.key = f.key;
-      area.appendChild(input);
-    });
-
+  function resetItems() {
+    items = [{}];
+    renderItems();
+    const dt = currentDocType();
     const attArea = document.getElementById('attachment-area');
-    attArea.style.display = dt.form_schema.attachments ? 'block' : 'none';
+    attArea.style.display = dt && dt.form_schema.attachments ? 'block' : 'none';
     selectedFiles = [];
     document.getElementById('file-list').textContent = '';
     document.getElementById('file-input').value = '';
+    document.getElementById('submit-btn').disabled = true;
   }
 
-  document.getElementById('doc-type-select').addEventListener('change', renderFields);
+  function renderItems() {
+    const dt = currentDocType();
+    const container = document.getElementById('items-container');
+    container.innerHTML = '';
+    if (!dt) return;
+    const fields = dt.form_schema.fields || [];
+
+    items.forEach((item, idx) => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+
+      const head = document.createElement('div');
+      head.className = 'item-head';
+      const num = document.createElement('div');
+      num.className = 'item-num';
+      num.textContent = `${dt.name} #${idx + 1}`;
+      head.appendChild(num);
+      if (items.length > 1) {
+        const rm = document.createElement('button');
+        rm.className = 'item-remove';
+        rm.textContent = '삭제';
+        rm.addEventListener('click', () => { items.splice(idx, 1); renderItems(); });
+        head.appendChild(rm);
+      }
+      card.appendChild(head);
+
+      fields.forEach((f) => {
+        const label = document.createElement('label');
+        label.textContent = f.label + (f.required ? ' *' : '');
+        card.appendChild(label);
+
+        let input;
+        if (f.type === 'textarea') {
+          input = document.createElement('textarea');
+        } else if (f.type === 'select') {
+          input = document.createElement('select');
+          (f.options || []).forEach((o) => {
+            const opt = document.createElement('option');
+            opt.value = o; opt.textContent = o;
+            input.appendChild(opt);
+          });
+        } else {
+          input = document.createElement('input');
+          input.type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+        }
+        input.value = item[f.key] || '';
+        input.addEventListener('input', () => { items[idx][f.key] = input.value; });
+        input.addEventListener('change', () => { items[idx][f.key] = input.value; });
+        card.appendChild(input);
+      });
+
+      container.appendChild(card);
+    });
+
+    document.getElementById('submit-btn').disabled = true; // 항목이 바뀌면 다시 미리보기부터
+  }
+
+  document.getElementById('doc-type-select').addEventListener('change', resetItems);
+  document.getElementById('add-item-btn').addEventListener('click', () => {
+    items.push({});
+    renderItems();
+  });
 
   document.getElementById('file-input').addEventListener('change', (e) => {
     selectedFiles = Array.from(e.target.files);
     document.getElementById('file-list').textContent =
       selectedFiles.length > 0 ? selectedFiles.map((f) => f.name).join(', ') + ' 선택됨' : '';
+    document.getElementById('submit-btn').disabled = true;
   });
 
   function fileToBase64(file) {
@@ -234,38 +305,69 @@
     el.className = 'msg show ' + (ok ? 'ok' : 'error');
   }
 
-  document.getElementById('submit-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('submit-btn');
-    const code = document.getElementById('doc-type-select').value;
-    const dt = docTypes.find((d) => d.code === code);
-    if (!dt) return;
-
-    const content = {};
-    let missing = false;
-    (dt.form_schema.fields || []).forEach((f) => {
-      const el = document.getElementById('field-' + f.key);
-      const val = el ? el.value : '';
-      if (f.required && !val) missing = true;
-      content[f.key] = val;
-    });
-    if (missing) return showMsg('new-msg', '필수 항목을 모두 입력해주세요.', false);
+  function validateItems(dt) {
+    for (const item of items) {
+      for (const f of dt.form_schema.fields || []) {
+        if (f.required && !item[f.key]) return false;
+      }
+    }
     if (dt.form_schema.attachments && dt.form_schema.attachments.required && selectedFiles.length === 0) {
-      return showMsg('new-msg', '영수증을 최소 1개 이상 첨부해주세요.', false);
+      return false;
+    }
+    return true;
+  }
+
+  document.getElementById('preview-btn').addEventListener('click', () => {
+    const dt = currentDocType();
+    if (!dt) return;
+    if (!validateItems(dt)) {
+      showMsg('new-msg', '필수 항목을 모두 입력해주세요 (영수증 첨부 포함).', false);
+      return;
+    }
+    document.getElementById('new-msg').className = 'msg';
+
+    const body = document.getElementById('preview-body');
+    let html = `<div class="p-item"><div class="p-row"><span class="k">문서 종류</span><span>${dt.name}</span></div>` +
+      `<div class="p-row"><span class="k">기안자</span><span>${employee.name}</span></div>` +
+      `<div class="p-row"><span class="k">첨부파일</span><span>${selectedFiles.length > 0 ? selectedFiles.map(f=>f.name).join(', ') : '없음'}</span></div></div>`;
+
+    items.forEach((item, idx) => {
+      html += `<div class="p-item"><div class="p-row"><span class="k">항목 #${idx + 1}</span><span></span></div>`;
+      (dt.form_schema.fields || []).forEach((f) => {
+        html += `<div class="p-row"><span class="k">${f.label}</span><span>${item[f.key] || '-'}</span></div>`;
+      });
+      html += `</div>`;
+    });
+
+    body.innerHTML = html;
+    document.getElementById('preview-modal').style.display = 'flex';
+    document.getElementById('submit-btn').disabled = false;
+  });
+
+  document.getElementById('preview-close-btn').addEventListener('click', () => {
+    document.getElementById('preview-modal').style.display = 'none';
+  });
+
+  async function submitDocument() {
+    const dt = currentDocType();
+    if (!dt) return;
+    if (!validateItems(dt)) {
+      showMsg('new-msg', '필수 항목을 모두 입력해주세요.', false);
+      return;
     }
 
     const title = `${dt.name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
+    const content = { items };
 
-    btn.disabled = true;
     try {
       const res = await fetch('/api/documents/create', {
         method: 'POST',
         headers: authHeaders(true),
-        body: JSON.stringify({ doc_type_code: code, title, content }),
+        body: JSON.stringify({ doc_type_code: dt.code, title, content }),
       });
       const data = await res.json();
       if (!res.ok) return showMsg('new-msg', data.error || '상신에 실패했습니다.', false);
 
-      // 첨부파일 업로드
       for (const file of selectedFiles) {
         const base64 = await fileToBase64(file);
         const fileType = file.type === 'application/pdf' ? 'pdf' : 'image';
@@ -281,20 +383,16 @@
         });
       }
 
+      document.getElementById('preview-modal').style.display = 'none';
       showMsg('new-msg', '상신이 완료되었습니다.', true);
-      selectedFiles = [];
-      document.getElementById('file-list').textContent = '';
-      document.getElementById('file-input').value = '';
-      (dt.form_schema.fields || []).forEach((f) => {
-        const el = document.getElementById('field-' + f.key);
-        if (el) el.value = '';
-      });
+      resetItems();
     } catch (e) {
       showMsg('new-msg', '네트워크 오류가 발생했습니다.', false);
-    } finally {
-      btn.disabled = false;
     }
-  });
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', submitDocument);
+  document.getElementById('preview-submit-btn').addEventListener('click', submitDocument);
 
   // ---------- 내 문서 ----------
   const statusLabel = { pending: '진행중', approved: '승인완료', rejected: '반려' };
@@ -339,7 +437,13 @@
       const doc = s.approval_documents;
       const drafterName = doc && doc.approval_employees ? doc.approval_employees.name : '';
       const typeName = doc && doc.approval_doc_types ? doc.approval_doc_types.name : '';
-      const contentLines = doc ? Object.entries(doc.content || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') : '';
+      const items = doc && doc.content && Array.isArray(doc.content.items) ? doc.content.items : [];
+      const itemsHtml = items.map((item, idx) =>
+        `<div style="margin-top:6px; padding:8px 10px; background:var(--paper); border-radius:8px;">` +
+        `<div style="font-weight:700; font-size:11px; color:var(--green-deep); margin-bottom:2px;">항목 #${idx + 1}</div>` +
+        Object.entries(item).map(([k, v]) => `<div style="font-size:12px; color:#4c6a58;">${k}: ${v}</div>`).join('') +
+        `</div>`
+      ).join('');
       return `
         <div class="doc">
           <div class="doc-top">
@@ -347,7 +451,7 @@
             <div class="badge pending">${s.step_name}</div>
           </div>
           <div class="doc-meta">${typeName} · 기안자: ${drafterName}</div>
-          <div class="doc-meta">${contentLines}</div>
+          ${itemsHtml}
           <div style="margin-top:10px; display:flex; gap:8px;">
             <button class="approve" onclick="act(${s.id}, 'approve')">승인</button>
             <button class="reject" onclick="act(${s.id}, 'reject')">반려</button>
