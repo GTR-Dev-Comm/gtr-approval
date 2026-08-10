@@ -209,7 +209,21 @@
     purchase: { name: '구매요청서', roles: ['작성자', '개발이사', '대표이사', '담당'] },
   };
 
-  function approvalBoxHtml(code) {
+  function approvalBoxHtml(code, realSteps) {
+    if (realSteps && realSteps.length > 0) {
+      const statusMark = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
+      return `
+        <table class="approval-table" style="width:100%;">
+          <tr>${realSteps.map((s) => `<td class="role">${s.step_name.replace(' 승인', '')}</td>`).join('')}</tr>
+          <tr>
+            ${realSteps.map((s) => {
+              const name = s.approval_employees ? s.approval_employees.name : '';
+              return `<td class="stamp">${esc(name)}<br/><span style="font-size:10px;">${statusMark[s.status] || s.status}</span></td>`;
+            }).join('')}
+          </tr>
+        </table>
+      `;
+    }
     const roles = DOC_DEFS[code].roles;
     return `
       <table class="approval-table" style="width:100%;">
@@ -222,19 +236,19 @@
     `;
   }
 
-  function titleRow(code) {
+  function titleRow(code, realSteps) {
     return `
       <table>
         <tr class="title-row">
           <td style="width:70%;" class="title-cell">${DOC_DEFS[code].name}</td>
-          <td style="width:30%; padding:8px;">${approvalBoxHtml(code)}</td>
+          <td style="width:30%; padding:8px;">${approvalBoxHtml(code, realSteps)}</td>
         </tr>
       </table>
     `;
   }
 
   // ---------- 휴가신청서 ----------
-  function renderVacationForm(data, editable) {
+  function renderVacationForm(data, editable, steps) {
     const d = data || {};
     const inp = (key, type, extra) => editable
       ? `<input data-field="${key}" type="${type || 'text'}" value="${esc(d[key])}" ${extra || ''} />`
@@ -247,7 +261,7 @@
     };
     return `
       <div class="paper-form">
-        ${titleRow('vacation')}
+        ${titleRow('vacation', steps)}
         <table>
           <tr>
             <td class="label">성명</td><td>${editable ? esc(employee.name) : esc(d.name || employee.name)}</td>
@@ -321,7 +335,7 @@
     return { html: `<table class="items-table">${head}${rows}${sumRow}</table>`, total };
   }
 
-  function renderExpenseForm(data, editable) {
+  function renderExpenseForm(data, editable, steps) {
     const d = data || { items: [] };
     const { html: tableHtml, total } = itemsTableHtml('expense', d, editable);
     const inp = (key) => editable
@@ -329,7 +343,7 @@
       : `<span>${esc(d[key]) || '-'}</span>`;
     return `
       <div class="paper-form">
-        ${titleRow('expense')}
+        ${titleRow('expense', steps)}
         <table>
           <tr>
             <td class="label">부서명</td><td>${deptSelectHtml(d.department, editable)}</td>
@@ -352,7 +366,7 @@
     `;
   }
 
-  function renderPurchaseForm(data, editable) {
+  function renderPurchaseForm(data, editable, steps) {
     const d = data || { items: [] };
     const { html: tableHtml } = itemsTableHtml('purchase', d, editable);
     const inp = (key, type) => editable
@@ -360,7 +374,7 @@
       : `<span>${esc(d[key]) || '-'}</span>`;
     return `
       <div class="paper-form">
-        ${titleRow('purchase')}
+        ${titleRow('purchase', steps)}
         <table>
           <tr>
             <td class="label">신청일자</td><td>${inp('request_date', 'date')}</td>
@@ -558,7 +572,7 @@
     listEl.innerHTML = data.documents.map((d) => {
       const code = d.approval_doc_types ? d.approval_doc_types.code : 'vacation';
       const renderer = FORM_RENDERERS[code];
-      const formHtml = renderer ? renderer(d.content, false) : '';
+      const formHtml = renderer ? renderer(d.content, false, d.steps) : '';
       return `
         <div class="doc">
           <div class="doc-top">
@@ -591,7 +605,7 @@
       const drafterName = doc && doc.approval_employees ? doc.approval_employees.name : '';
       const code = doc && doc.approval_doc_types ? doc.approval_doc_types.code : 'vacation';
       const renderer = FORM_RENDERERS[code];
-      const formHtml = doc && renderer ? renderer(doc.content, false) : '';
+      const formHtml = doc && renderer ? renderer(doc.content, false, s.all_steps) : '';
       return `
         <div class="doc">
           <div class="doc-top">
