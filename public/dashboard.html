@@ -28,7 +28,7 @@
   .who { font-size: 13px; color: #6b7a71; }
   .logout { font-size: 12px; color: #9aa79e; cursor: pointer; margin-left: 12px; text-decoration: underline; }
 
-  .wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
 
   .tabs { display: flex; gap: 4px; background: var(--green-soft); padding: 4px; border-radius: 10px; margin-bottom: 20px; }
   .tab { flex: 1; text-align: center; padding: 9px 0; border-radius: 7px; font-size: 13px; font-weight: 600; color: #4c6a58; cursor: pointer; }
@@ -37,13 +37,13 @@
   .panel.active { display: block; }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 12px; }
-  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; color: #33413a; }
-  input, select, textarea {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;
-    font-size: 14px; background: #fbfbf9; color: var(--ink); outline: none; font-family: inherit;
+
+  .doctype-picker { display: flex; gap: 8px; margin-bottom: 16px; }
+  .doctype-btn {
+    flex: 1; padding: 12px 6px; text-align: center; border-radius: 10px; border: 1px solid var(--line);
+    background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; color: #4c6a58;
   }
-  textarea { min-height: 80px; resize: vertical; }
-  input:focus, select:focus, textarea:focus { border-color: var(--green); background: #fff; }
+  .doctype-btn.active { background: var(--green-deep); color: #fff; border-color: var(--green-deep); }
 
   button.primary {
     padding: 11px 18px; border: none; border-radius: 9px; background: var(--green-deep);
@@ -55,40 +55,67 @@
   }
   button.reject { background: var(--red-soft); color: var(--red); border: none; }
   button.approve { background: var(--green-deep); color: #fff; border: none; }
+  button.row-add { margin-top: 8px; }
+  button.row-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; }
 
-  .file-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .file-list { font-size: 12px; color: #6b7a71; margin-top: 6px; }
+  input[type="file"] { font-size: 13px; }
+
+  /* ---- 종이 양식 스타일 ---- */
+  .paper-form {
+    border: 2px solid #222; border-radius: 2px; overflow: hidden; background: #fff; font-size: 13px;
+  }
+  .paper-form table { width: 100%; border-collapse: collapse; }
+  .paper-form td, .paper-form th { border: 1px solid #444; padding: 7px 9px; vertical-align: middle; }
+  .paper-form td.label {
+    background: #dfe9e3; font-weight: 700; text-align: center; width: 100px; white-space: nowrap; font-size: 12px;
+  }
+  .paper-form th { background: #dfe9e3; font-size: 12px; }
+  .paper-form .title-row td { border: none; padding: 0; }
+  .paper-form .title-cell { font-size: 24px; font-weight: 800; text-align: center; padding: 22px 10px; letter-spacing: 4px; }
+  .paper-form .approval-table { border-collapse: collapse; }
+  .paper-form .approval-table td { text-align: center; font-size: 11px; padding: 4px 8px; }
+  .paper-form .approval-table td.role { background: #f2f2f2; font-weight: 700; height: 18px; }
+  .paper-form .approval-table td.stamp { height: 40px; min-width: 56px; color: #9aa79e; }
+  .paper-form input, .paper-form textarea, .paper-form select {
+    border: none; background: transparent; width: 100%; font-size: 13px; padding: 2px 3px; font-family: inherit; outline: none;
+  }
+  .paper-form input:focus, .paper-form textarea:focus, .paper-form select:focus { background: var(--green-soft); }
+  .paper-form input[readonly] { color: #6b7a71; }
+  .paper-form textarea { min-height: 70px; resize: vertical; }
+  .paper-form .center { text-align: center; }
+  .paper-form .footer-text { text-align: center; padding: 14px 10px; }
+  .paper-form .footer-date { text-align: center; padding: 6px 10px; font-weight: 700; }
+  .paper-form .signer-row { text-align: center; padding: 14px 10px; }
+  .paper-form .checkbox-row label { display: inline-flex; align-items: center; gap: 4px; margin-right: 16px; font-size: 13px; cursor: pointer; }
+  .paper-form .checkbox-row input[type="checkbox"], .paper-form .checkbox-row input[type="radio"] { width: auto; }
+  .paper-form .items-table td { text-align: center; }
+  .paper-form .items-table td.desc-cell { text-align: left; }
+  .paper-form .sum-row td { font-weight: 700; background: #f7f7f7; }
 
   .doc {
-    border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; background: #fff;
+    border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background: #fff;
   }
-  .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
   .doc-title { font-size: 14px; font-weight: 700; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
   .badge.pending { background: var(--amber-soft); color: var(--amber); }
   .badge.approved { background: var(--green-soft); color: var(--green-deep); }
   .badge.rejected { background: var(--red-soft); color: var(--red); }
-  .doc-meta { font-size: 12px; color: #9aa79e; margin-top: 4px; }
+  .doc-meta { font-size: 12px; color: #9aa79e; margin-bottom: 8px; }
   .doc-steps { margin-top: 10px; font-size: 12px; color: #4c6a58; display: flex; gap: 6px; flex-wrap: wrap; }
   .step-chip { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); }
   .step-chip.approved { border-color: var(--green); color: var(--green-deep); }
   .step-chip.rejected { border-color: var(--red); color: var(--red); }
   .step-chip.waiting { border-color: var(--amber); color: var(--amber); }
+  .att-list { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .att-chip { font-size: 11px; padding: 4px 8px; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); color: #4c6a58; text-decoration: none; }
 
   .empty { text-align: center; color: #9aa79e; padding: 40px 0; font-size: 13px; }
   .msg { margin-top: 12px; font-size: 13px; padding: 10px 12px; border-radius: 8px; display: none; }
   .msg.show { display: block; }
   .msg.error { background: var(--red-soft); color: var(--red); }
   .msg.ok { background: var(--green-soft); color: var(--green-deep); }
-  .item-card {
-    border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-top: 12px; background: #fbfbf9; position: relative;
-  }
-  .item-card .item-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 4px; }
-  .item-card .item-num { font-size: 12px; font-weight: 700; color: var(--green-deep); }
-  .item-remove { font-size: 12px; color: var(--red); cursor: pointer; background:none; border:none; padding:0; }
-  #preview-body .p-item { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-  #preview-body .p-row { display:flex; justify-content:space-between; gap:10px; padding: 3px 0; }
-  #preview-body .p-row .k { color:#7a8a80; }
 </style>
 </head>
 <body>
@@ -106,37 +133,20 @@
 
   <!-- 새 문서 작성 -->
   <div class="panel active" id="panel-new">
-    <div class="card">
-      <label>문서 종류</label>
-      <select id="doc-type-select"></select>
+    <div class="doctype-picker" id="doctype-picker"></div>
 
-      <div id="items-container"></div>
-      <button class="ghost" id="add-item-btn" style="margin-top:10px;">+ 항목 추가</button>
+    <div id="form-render"></div>
 
-      <div id="attachment-area" style="display:none;">
-        <label>영수증 첨부 (사진 또는 PDF, 여러 장 가능)</label>
-        <input type="file" id="file-input" accept="image/jpeg,image/png,application/pdf" multiple />
-        <div class="file-list" id="file-list"></div>
-      </div>
-
-      <div style="display:flex; gap:8px; margin-top:18px;">
-        <button class="ghost" id="preview-btn">미리보기</button>
-        <button class="primary" id="submit-btn" disabled title="먼저 미리보기를 확인해주세요">상신하기</button>
-      </div>
-      <div class="msg" id="new-msg"></div>
+    <div id="attachment-area" class="card" style="display:none; margin-top:12px;">
+      <label style="font-size:13px; font-weight:700; display:block; margin-bottom:8px;">영수증 첨부 (사진 또는 PDF, 여러 장 가능)</label>
+      <input type="file" id="file-input" accept="image/jpeg,image/png,application/pdf" multiple />
+      <div class="file-list" id="file-list"></div>
     </div>
-  </div>
 
-  <!-- 미리보기 모달 -->
-  <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(27,38,33,.45); z-index:50; align-items:center; justify-content:center; padding:20px;">
-    <div style="background:#fff; border-radius:14px; max-width:520px; width:100%; max-height:80vh; overflow-y:auto; padding:22px;">
-      <h2 style="font-size:16px; margin:0 0 14px;">문서 미리보기</h2>
-      <div id="preview-body" style="font-size:13px; line-height:1.7;"></div>
-      <div style="display:flex; gap:8px; margin-top:20px;">
-        <button class="ghost" id="preview-close-btn">수정하기</button>
-        <button class="primary" id="preview-submit-btn">이 내용으로 상신하기</button>
-      </div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="primary" id="submit-btn">상신하기</button>
     </div>
+    <div class="msg" id="new-msg"></div>
   </div>
 
   <!-- 내 문서 -->
@@ -168,6 +178,13 @@
     if (json) h['Content-Type'] = 'application/json';
     return h;
   }
+  function esc(v) {
+    return (v === undefined || v === null) ? '' : String(v).replace(/"/g, '&quot;');
+  }
+  function fmtNum(n) {
+    const v = Number(n) || 0;
+    return v.toLocaleString('ko-KR');
+  }
 
   // ---------- 탭 전환 ----------
   const tabs = document.querySelectorAll('.tab');
@@ -183,111 +200,258 @@
     });
   });
 
-  // ---------- 새 문서 작성 ----------
-  let docTypes = [];
+  // ======================================================
+  // 문서 양식 정의
+  // ======================================================
+  const DOC_DEFS = {
+    vacation: { name: '휴가신청서', roles: ['작성자', '개발이사', '담당'] },
+    expense: { name: '지출결의서', roles: ['작성자', '개발이사', '차장', '담당'] },
+    purchase: { name: '구매요청서', roles: ['작성자', '개발이사', '대표이사', '담당'] },
+  };
+
+  function approvalBoxHtml(code) {
+    const roles = DOC_DEFS[code].roles;
+    return `
+      <table class="approval-table" style="width:100%;">
+        <tr>${roles.map((r) => `<td class="role">${r}</td>`).join('')}</tr>
+        <tr>
+          <td class="stamp">${esc(employee.name)}</td>
+          ${roles.slice(1).map(() => `<td class="stamp">결재예정</td>`).join('')}
+        </tr>
+      </table>
+    `;
+  }
+
+  function titleRow(code) {
+    return `
+      <table>
+        <tr class="title-row">
+          <td style="width:70%;" class="title-cell">${DOC_DEFS[code].name}</td>
+          <td style="width:30%; padding:8px;">${approvalBoxHtml(code)}</td>
+        </tr>
+      </table>
+    `;
+  }
+
+  // ---------- 휴가신청서 ----------
+  function renderVacationForm(data, editable) {
+    const d = data || {};
+    const inp = (key, type, extra) => editable
+      ? `<input data-field="${key}" type="${type || 'text'}" value="${esc(d[key])}" ${extra || ''} />`
+      : `<span>${esc(d[key]) || '-'}</span>`;
+    const chk = (key, val, label) => {
+      const checked = d[key] === val ? 'checked' : '';
+      return editable
+        ? `<label><input type="radio" name="f_${key}" data-field="${key}" value="${val}" ${checked} /> ${label}</label>`
+        : `<label>${d[key] === val ? '☑' : '☐'} ${label}</label>`;
+    };
+    return `
+      <div class="paper-form">
+        ${titleRow('vacation')}
+        <table>
+          <tr>
+            <td class="label">성명</td><td>${editable ? esc(employee.name) : esc(d.name || employee.name)}</td>
+            <td class="label">부서</td><td>${inp('department')}</td>
+            <td class="label">직급</td><td>${inp('position')}</td>
+          </tr>
+          <tr>
+            <td class="label">구분</td>
+            <td colspan="5" class="checkbox-row">
+              ${chk('vacation_type', '연차', '연차')}
+              ${chk('vacation_type', '반차', '반차')}
+              ${chk('half', '오전', '오전')}
+              ${chk('half', '오후', '오후')}
+            </td>
+          </tr>
+          <tr>
+            <td class="label">휴가기간</td>
+            <td colspan="5">
+              <div style="display:flex; align-items:center; gap:6px;">
+                ${inp('start_date', 'date')} <span>~</span> ${inp('end_date', 'date')}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label">내용</td>
+            <td colspan="5">${editable ? `<textarea data-field="reason">${esc(d.reason)}</textarea>` : `<div>${esc(d.reason) || '-'}</div>`}</td>
+          </tr>
+          <tr><td colspan="6" class="footer-text">위와 같은 내용으로 휴가를 신청합니다.</td></tr>
+          <tr><td colspan="6" class="footer-date">${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+          <tr><td colspan="6" class="signer-row">신청인 : ${esc(employee.name)} (인)</td></tr>
+        </table>
+      </div>
+    `;
+  }
+
+  // ---------- 지출결의서 / 구매요청서 (항목 테이블형) ----------
+  function itemsTableHtml(code, data, editable) {
+    const items = (data && data.items) || [];
+    const cols = code === 'expense'
+      ? [['date', '날짜', 'date'], ['vendor', '업체명', 'text'], ['amount', '금액', 'number'], ['description', '지출내용', 'text']]
+      : [['item_name', '품명', 'text'], ['qty', '수량', 'number'], ['unit_price', '단가', 'number'], ['vendor', '구입처', 'text']];
+
+    const total = items.reduce((sum, it) => {
+      if (code === 'expense') return sum + (Number(it.amount) || 0);
+      return sum + (Number(it.qty) || 0) * (Number(it.unit_price) || 0);
+    }, 0);
+
+    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:30px;"></th>' : ''}</tr>`;
+
+    let rows = items.map((it, idx) => {
+      const cells = cols.map(([k, l, type]) => {
+        const val = it[k];
+        if (!editable) return `<td class="${k === 'description' ? 'desc-cell' : ''}">${type === 'number' ? fmtNum(val) : (esc(val) || '-')}</td>`;
+        return `<td><input data-row="${idx}" data-col="${k}" type="${type}" value="${esc(val)}" /></td>`;
+      }).join('');
+      const amountCell = code === 'purchase'
+        ? `<td>${fmtNum((Number(it.qty) || 0) * (Number(it.unit_price) || 0))}</td>`
+        : '';
+      const noCell = code === 'purchase' ? `<td>${idx + 1}</td>` : '';
+      const delCell = editable ? `<td><button type="button" class="row-del" data-del-row="${idx}">×</button></td>` : '';
+      return `<tr>${noCell}${cells}${amountCell}${delCell}</tr>`;
+    }).join('');
+
+    if (items.length === 0) {
+      rows = `<tr><td colspan="${cols.length + (code === 'purchase' ? 2 : 0) + (editable ? 1 : 0)}" style="text-align:center; color:#9aa79e;">${editable ? '아래 "+ 행 추가" 버튼으로 항목을 넣어주세요' : '항목 없음'}</td></tr>`;
+    }
+
+    const sumLabel = code === 'expense' ? '계' : '합계';
+    const sumRow = `<tr class="sum-row"><td colspan="${(code === 'purchase' ? 1 : 0) + 1}">${sumLabel}</td><td colspan="${cols.length - 1 + (code === 'purchase' ? 1 : 0) + (editable ? 1 : 0)}" style="text-align:right;">${fmtNum(total)} 원</td></tr>`;
+
+    return { html: `<table class="items-table">${head}${rows}${sumRow}</table>`, total };
+  }
+
+  function renderExpenseForm(data, editable) {
+    const d = data || { items: [] };
+    const { html: tableHtml, total } = itemsTableHtml('expense', d, editable);
+    const inp = (key) => editable
+      ? `<input data-field="${key}" value="${esc(d[key])}" />`
+      : `<span>${esc(d[key]) || '-'}</span>`;
+    return `
+      <div class="paper-form">
+        ${titleRow('expense')}
+        <table>
+          <tr>
+            <td class="label">부서명</td><td>${inp('department')}</td>
+            <td class="label">직급</td><td>${inp('position')}</td>
+            <td class="label">성명</td><td>${editable ? esc(employee.name) : esc(d.name || employee.name)}</td>
+          </tr>
+          <tr>
+            <td class="label">지출금액</td>
+            <td colspan="5">일금 ${fmtNum(total)} 원정 (₩ ${fmtNum(total)})</td>
+          </tr>
+        </table>
+        ${tableHtml}
+        <table>
+          <tr><td colspan="6" class="footer-text">위 금액을 청구하오니 결재바랍니다.</td></tr>
+          <tr><td colspan="6" class="footer-date">${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+          <tr><td colspan="6" class="signer-row">영수인 : ${esc(employee.name)} (인)</td></tr>
+        </table>
+      </div>
+      ${editable ? '<button type="button" class="ghost row-add" id="add-row-btn">+ 행 추가</button>' : ''}
+    `;
+  }
+
+  function renderPurchaseForm(data, editable) {
+    const d = data || { items: [] };
+    const { html: tableHtml } = itemsTableHtml('purchase', d, editable);
+    const inp = (key, type) => editable
+      ? `<input data-field="${key}" type="${type || 'text'}" value="${esc(d[key])}" />`
+      : `<span>${esc(d[key]) || '-'}</span>`;
+    return `
+      <div class="paper-form">
+        ${titleRow('purchase')}
+        <table>
+          <tr>
+            <td class="label">신청일자</td><td>${inp('request_date', 'date')}</td>
+            <td class="label">신청자</td><td>${editable ? esc(employee.name) : esc(d.requester || employee.name)}</td>
+          </tr>
+          <tr>
+            <td class="label">소속</td><td>${inp('department')}</td>
+            <td class="label">용도</td><td>${inp('purpose')}</td>
+          </tr>
+        </table>
+        ${tableHtml}
+        <table>
+          <tr><td colspan="6" class="footer-text">상기 내용에 대한 구매를 요청합니다.</td></tr>
+          <tr><td colspan="6" class="footer-date">${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+          <tr><td colspan="6" class="signer-row">신청인 : ${esc(employee.name)} (인)</td></tr>
+        </table>
+      </div>
+      ${editable ? '<button type="button" class="ghost row-add" id="add-row-btn">+ 행 추가</button>' : ''}
+    `;
+  }
+
+  const FORM_RENDERERS = { vacation: renderVacationForm, expense: renderExpenseForm, purchase: renderPurchaseForm };
+
+  // ---------- 새 문서 작성 상태 ----------
+  let currentDocCode = 'vacation';
+  let formData = {};
   let selectedFiles = [];
-  let items = [{}]; // 각 항목의 입력값 { fieldKey: value }
 
-  async function loadDocTypes() {
-    const res = await fetch('/api/doc-types', { headers: authHeaders() });
-    const data = await res.json();
-    docTypes = data.doc_types || [];
-    const sel = document.getElementById('doc-type-select');
-    sel.innerHTML = '';
-    docTypes.forEach((dt) => {
-      const opt = document.createElement('option');
-      opt.value = dt.code;
-      opt.textContent = dt.name;
-      sel.appendChild(opt);
-    });
-    resetItems();
-  }
-
-  function currentDocType() {
-    const code = document.getElementById('doc-type-select').value;
-    return docTypes.find((d) => d.code === code);
-  }
-
-  function resetItems() {
-    items = [{}];
-    renderItems();
-    const dt = currentDocType();
-    const attArea = document.getElementById('attachment-area');
-    attArea.style.display = dt && dt.form_schema.attachments ? 'block' : 'none';
-    selectedFiles = [];
-    document.getElementById('file-list').textContent = '';
-    document.getElementById('file-input').value = '';
-    document.getElementById('submit-btn').disabled = true;
-  }
-
-  function renderItems() {
-    const dt = currentDocType();
-    const container = document.getElementById('items-container');
-    container.innerHTML = '';
-    if (!dt) return;
-    const fields = dt.form_schema.fields || [];
-
-    items.forEach((item, idx) => {
-      const card = document.createElement('div');
-      card.className = 'item-card';
-
-      const head = document.createElement('div');
-      head.className = 'item-head';
-      const num = document.createElement('div');
-      num.className = 'item-num';
-      num.textContent = `${dt.name} #${idx + 1}`;
-      head.appendChild(num);
-      if (items.length > 1) {
-        const rm = document.createElement('button');
-        rm.className = 'item-remove';
-        rm.textContent = '삭제';
-        rm.addEventListener('click', () => { items.splice(idx, 1); renderItems(); });
-        head.appendChild(rm);
-      }
-      card.appendChild(head);
-
-      fields.forEach((f) => {
-        const label = document.createElement('label');
-        label.textContent = f.label + (f.required ? ' *' : '');
-        card.appendChild(label);
-
-        let input;
-        if (f.type === 'textarea') {
-          input = document.createElement('textarea');
-        } else if (f.type === 'select') {
-          input = document.createElement('select');
-          (f.options || []).forEach((o) => {
-            const opt = document.createElement('option');
-            opt.value = o; opt.textContent = o;
-            input.appendChild(opt);
-          });
-        } else {
-          input = document.createElement('input');
-          input.type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
-        }
-        input.value = item[f.key] || '';
-        input.addEventListener('input', () => { items[idx][f.key] = input.value; });
-        input.addEventListener('change', () => { items[idx][f.key] = input.value; });
-        card.appendChild(input);
+  function buildDoctypePicker() {
+    const picker = document.getElementById('doctype-picker');
+    picker.innerHTML = Object.keys(DOC_DEFS).map((code) =>
+      `<div class="doctype-btn ${code === currentDocCode ? 'active' : ''}" data-code="${code}">${DOC_DEFS[code].name}</div>`
+    ).join('');
+    picker.querySelectorAll('.doctype-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentDocCode = btn.dataset.code;
+        formData = currentDocCode === 'vacation' ? {} : { items: [] };
+        selectedFiles = [];
+        document.getElementById('file-list').textContent = '';
+        document.getElementById('file-input').value = '';
+        buildDoctypePicker();
+        renderCurrentForm();
       });
-
-      container.appendChild(card);
     });
-
-    document.getElementById('submit-btn').disabled = true; // 항목이 바뀌면 다시 미리보기부터
   }
 
-  document.getElementById('doc-type-select').addEventListener('change', resetItems);
-  document.getElementById('add-item-btn').addEventListener('click', () => {
-    items.push({});
-    renderItems();
-  });
+  function renderCurrentForm() {
+    const html = FORM_RENDERERS[currentDocCode](formData, true);
+    document.getElementById('form-render').innerHTML = html;
+    document.getElementById('attachment-area').style.display = currentDocCode === 'expense' ? 'block' : 'none';
+    attachFormListeners();
+  }
+
+  function attachFormListeners() {
+    const container = document.getElementById('form-render');
+
+    container.querySelectorAll('[data-field]').forEach((el) => {
+      const handler = () => { formData[el.dataset.field] = el.value; };
+      el.addEventListener('input', handler);
+      el.addEventListener('change', handler);
+    });
+
+    container.querySelectorAll('[data-row]').forEach((el) => {
+      const handler = () => {
+        const idx = Number(el.dataset.row);
+        formData.items[idx][el.dataset.col] = el.value;
+        renderCurrentForm(); // 합계 재계산을 위해 다시 그림
+      };
+      el.addEventListener('change', handler);
+    });
+
+    container.querySelectorAll('[data-del-row]').forEach((el) => {
+      el.addEventListener('click', () => {
+        formData.items.splice(Number(el.dataset.delRow), 1);
+        renderCurrentForm();
+      });
+    });
+
+    const addBtn = document.getElementById('add-row-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        formData.items.push({});
+        renderCurrentForm();
+      });
+    }
+  }
 
   document.getElementById('file-input').addEventListener('change', (e) => {
     selectedFiles = Array.from(e.target.files);
     document.getElementById('file-list').textContent =
       selectedFiles.length > 0 ? selectedFiles.map((f) => f.name).join(', ') + ' 선택됨' : '';
-    document.getElementById('submit-btn').disabled = true;
   });
 
   function fileToBase64(file) {
@@ -305,65 +469,27 @@
     el.className = 'msg show ' + (ok ? 'ok' : 'error');
   }
 
-  function validateItems(dt) {
-    for (const item of items) {
-      for (const f of dt.form_schema.fields || []) {
-        if (f.required && !item[f.key]) return false;
-      }
+  function validateForm() {
+    if (currentDocCode === 'vacation') {
+      return formData.start_date && formData.end_date && formData.vacation_type;
     }
-    if (dt.form_schema.attachments && dt.form_schema.attachments.required && selectedFiles.length === 0) {
-      return false;
-    }
-    return true;
+    return (formData.items || []).length > 0;
   }
 
-  document.getElementById('preview-btn').addEventListener('click', () => {
-    const dt = currentDocType();
-    if (!dt) return;
-    if (!validateItems(dt)) {
-      showMsg('new-msg', '필수 항목을 모두 입력해주세요 (영수증 첨부 포함).', false);
-      return;
-    }
-    document.getElementById('new-msg').className = 'msg';
-
-    const body = document.getElementById('preview-body');
-    let html = `<div class="p-item"><div class="p-row"><span class="k">문서 종류</span><span>${dt.name}</span></div>` +
-      `<div class="p-row"><span class="k">기안자</span><span>${employee.name}</span></div>` +
-      `<div class="p-row"><span class="k">첨부파일</span><span>${selectedFiles.length > 0 ? selectedFiles.map(f=>f.name).join(', ') : '없음'}</span></div></div>`;
-
-    items.forEach((item, idx) => {
-      html += `<div class="p-item"><div class="p-row"><span class="k">항목 #${idx + 1}</span><span></span></div>`;
-      (dt.form_schema.fields || []).forEach((f) => {
-        html += `<div class="p-row"><span class="k">${f.label}</span><span>${item[f.key] || '-'}</span></div>`;
-      });
-      html += `</div>`;
-    });
-
-    body.innerHTML = html;
-    document.getElementById('preview-modal').style.display = 'flex';
-    document.getElementById('submit-btn').disabled = false;
-  });
-
-  document.getElementById('preview-close-btn').addEventListener('click', () => {
-    document.getElementById('preview-modal').style.display = 'none';
-  });
-
-  async function submitDocument() {
-    const dt = currentDocType();
-    if (!dt) return;
-    if (!validateItems(dt)) {
-      showMsg('new-msg', '필수 항목을 모두 입력해주세요.', false);
-      return;
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('submit-btn');
+    if (!validateForm()) {
+      return showMsg('new-msg', '필수 항목을 입력해주세요.', false);
     }
 
-    const title = `${dt.name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
-    const content = { items };
+    const title = `${DOC_DEFS[currentDocCode].name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
 
+    btn.disabled = true;
     try {
       const res = await fetch('/api/documents/create', {
         method: 'POST',
         headers: authHeaders(true),
-        body: JSON.stringify({ doc_type_code: dt.code, title, content }),
+        body: JSON.stringify({ doc_type_code: currentDocCode, title, content: formData }),
       });
       const data = await res.json();
       if (!res.ok) return showMsg('new-msg', data.error || '상신에 실패했습니다.', false);
@@ -383,16 +509,18 @@
         });
       }
 
-      document.getElementById('preview-modal').style.display = 'none';
       showMsg('new-msg', '상신이 완료되었습니다.', true);
-      resetItems();
+      formData = currentDocCode === 'vacation' ? {} : { items: [] };
+      selectedFiles = [];
+      document.getElementById('file-list').textContent = '';
+      document.getElementById('file-input').value = '';
+      renderCurrentForm();
     } catch (e) {
       showMsg('new-msg', '네트워크 오류가 발생했습니다.', false);
+    } finally {
+      btn.disabled = false;
     }
-  }
-
-  document.getElementById('submit-btn').addEventListener('click', submitDocument);
-  document.getElementById('preview-submit-btn').addEventListener('click', submitDocument);
+  });
 
   // ---------- 내 문서 ----------
   const statusLabel = { pending: '진행중', approved: '승인완료', rejected: '반려' };
@@ -408,18 +536,24 @@
       listEl.innerHTML = '<div class="empty">아직 상신한 문서가 없습니다.</div>';
       return;
     }
-    listEl.innerHTML = data.documents.map((d) => `
-      <div class="doc">
-        <div class="doc-top">
-          <div class="doc-title">${d.title}</div>
-          <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+    listEl.innerHTML = data.documents.map((d) => {
+      const code = d.approval_doc_types ? d.approval_doc_types.code : 'vacation';
+      const renderer = FORM_RENDERERS[code];
+      const formHtml = renderer ? renderer(d.content, false) : '';
+      return `
+        <div class="doc">
+          <div class="doc-top">
+            <div class="doc-title">${d.title}</div>
+            <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+          </div>
+          <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          ${formHtml}
+          <div class="doc-steps">
+            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
+          </div>
         </div>
-        <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
-        <div class="doc-steps">
-          ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   // ---------- 결재할 문서 ----------
@@ -436,29 +570,41 @@
     listEl.innerHTML = data.pending.map((s) => {
       const doc = s.approval_documents;
       const drafterName = doc && doc.approval_employees ? doc.approval_employees.name : '';
-      const typeName = doc && doc.approval_doc_types ? doc.approval_doc_types.name : '';
-      const items = doc && doc.content && Array.isArray(doc.content.items) ? doc.content.items : [];
-      const itemsHtml = items.map((item, idx) =>
-        `<div style="margin-top:6px; padding:8px 10px; background:var(--paper); border-radius:8px;">` +
-        `<div style="font-weight:700; font-size:11px; color:var(--green-deep); margin-bottom:2px;">항목 #${idx + 1}</div>` +
-        Object.entries(item).map(([k, v]) => `<div style="font-size:12px; color:#4c6a58;">${k}: ${v}</div>`).join('') +
-        `</div>`
-      ).join('');
+      const code = doc && doc.approval_doc_types ? doc.approval_doc_types.code : 'vacation';
+      const renderer = FORM_RENDERERS[code];
+      const formHtml = doc && renderer ? renderer(doc.content, false) : '';
       return `
         <div class="doc">
           <div class="doc-top">
             <div class="doc-title">${doc ? doc.title : ''}</div>
             <div class="badge pending">${s.step_name}</div>
           </div>
-          <div class="doc-meta">${typeName} · 기안자: ${drafterName}</div>
-          ${itemsHtml}
-          <div style="margin-top:10px; display:flex; gap:8px;">
+          <div class="doc-meta">기안자: ${drafterName}</div>
+          ${formHtml}
+          <div id="att-${doc ? doc.id : ''}" class="att-list"></div>
+          <div style="margin-top:12px; display:flex; gap:8px;">
             <button class="approve" onclick="act(${s.id}, 'approve')">승인</button>
             <button class="reject" onclick="act(${s.id}, 'reject')">반려</button>
           </div>
         </div>
       `;
     }).join('');
+
+    data.pending.forEach((s) => {
+      const doc = s.approval_documents;
+      if (doc) loadAttachments(doc.id);
+    });
+  }
+
+  async function loadAttachments(document_id) {
+    const el = document.getElementById('att-' + document_id);
+    if (!el) return;
+    const res = await fetch('/api/attachments/list?document_id=' + document_id, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok || !data.attachments || data.attachments.length === 0) return;
+    el.innerHTML = data.attachments.map((a) =>
+      `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">${a.file_name}</a>`
+    ).join('');
   }
 
   async function act(step_id, action) {
@@ -475,7 +621,8 @@
     else alert('처리 중 오류가 발생했습니다.');
   }
 
-  loadDocTypes();
+  buildDoctypePicker();
+  renderCurrentForm();
 </script>
 </body>
 </html>
