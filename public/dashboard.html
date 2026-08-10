@@ -251,7 +251,7 @@
         <table>
           <tr>
             <td class="label">성명</td><td>${editable ? esc(employee.name) : esc(d.name || employee.name)}</td>
-            <td class="label">부서</td><td>${inp('department')}</td>
+            <td class="label">부서</td><td>${deptSelectHtml(d.department, editable)}</td>
             <td class="label">직급</td><td>${inp('position')}</td>
           </tr>
           <tr>
@@ -332,7 +332,7 @@
         ${titleRow('expense')}
         <table>
           <tr>
-            <td class="label">부서명</td><td>${inp('department')}</td>
+            <td class="label">부서명</td><td>${deptSelectHtml(d.department, editable)}</td>
             <td class="label">직급</td><td>${inp('position')}</td>
             <td class="label">성명</td><td>${editable ? esc(employee.name) : esc(d.name || employee.name)}</td>
           </tr>
@@ -367,7 +367,7 @@
             <td class="label">신청자</td><td>${editable ? esc(employee.name) : esc(d.requester || employee.name)}</td>
           </tr>
           <tr>
-            <td class="label">소속</td><td>${inp('department')}</td>
+            <td class="label">소속</td><td>${deptSelectHtml(d.department, editable)}</td>
             <td class="label">용도</td><td>${inp('purpose')}</td>
           </tr>
         </table>
@@ -388,6 +388,25 @@
   let currentDocCode = 'vacation';
   let formData = {};
   let selectedFiles = [];
+  let departmentList = [];
+
+  async function loadDepartments() {
+    try {
+      const res = await fetch('/api/departments', { headers: authHeaders() });
+      const data = await res.json();
+      departmentList = data.departments || [];
+    } catch (e) {
+      departmentList = [];
+    }
+  }
+
+  function deptSelectHtml(currentValue, editable) {
+    if (!editable) return `<span>${esc(currentValue) || '-'}</span>`;
+    const options = departmentList.map((d) =>
+      `<option value="${esc(d.name)}" ${d.name === currentValue ? 'selected' : ''}>${esc(d.name)}</option>`
+    ).join('');
+    return `<select data-field="department"><option value="">부서 선택</option>${options}</select>`;
+  }
 
   function buildDoctypePicker() {
     const picker = document.getElementById('doctype-picker');
@@ -621,8 +640,11 @@
     else alert('처리 중 오류가 발생했습니다.');
   }
 
-  buildDoctypePicker();
-  renderCurrentForm();
+  (async function init() {
+    await loadDepartments();
+    buildDoctypePicker();
+    renderCurrentForm();
+  })();
 </script>
 </body>
 </html>
