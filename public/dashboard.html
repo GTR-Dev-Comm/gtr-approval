@@ -64,6 +64,7 @@
   /* ---- 종이 양식 스타일 ---- */
   .paper-form {
     border: 2px solid #222; border-radius: 2px; overflow: hidden; background: #fff; font-size: 13px;
+    max-width: 800px; margin: 0 auto; box-shadow: 0 4px 18px rgba(27,38,33,.10);
   }
   .paper-form table { width: 100%; border-collapse: collapse; }
   .paper-form td, .paper-form th { border: 1px solid #444; padding: 7px 9px; vertical-align: middle; }
@@ -116,6 +117,20 @@
   .msg.show { display: block; }
   .msg.error { background: var(--red-soft); color: var(--red); }
   .msg.ok { background: var(--green-soft); color: var(--green-deep); }
+
+  .print-btn { font-size: 12px; padding: 6px 12px; }
+
+  /* ---- 인쇄 전용 (A4) ---- */
+  #print-area { display: none; }
+  @page { size: A4; margin: 14mm; }
+  @media print {
+    body * { visibility: hidden; }
+    #print-area, #print-area * { visibility: visible; }
+    #print-area {
+      display: block; position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
+    }
+    #print-area .paper-form { box-shadow: none; max-width: 100%; border: 1.5px solid #000; }
+  }
 </style>
 </head>
 <body>
@@ -160,6 +175,8 @@
   </div>
 </div>
 
+<div id="print-area"></div>
+
 <script>
   const token = localStorage.getItem('gtr_approval_token');
   const employeeRaw = localStorage.getItem('gtr_approval_employee');
@@ -184,6 +201,13 @@
   function fmtNum(n) {
     const v = Number(n) || 0;
     return v.toLocaleString('ko-KR');
+  }
+  const printStore = {};
+  function printDoc(key) {
+    const html = printStore[key];
+    if (!html) return;
+    document.getElementById('print-area').innerHTML = html;
+    window.print();
   }
 
   // ---------- 탭 전환 ----------
@@ -573,11 +597,15 @@
       const code = d.approval_doc_types ? d.approval_doc_types.code : 'vacation';
       const renderer = FORM_RENDERERS[code];
       const formHtml = renderer ? renderer(d.content, false, d.steps) : '';
+      printStore['my-' + d.id] = formHtml;
       return `
         <div class="doc">
           <div class="doc-top">
             <div class="doc-title">${d.title}</div>
-            <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="ghost print-btn" onclick="printDoc('my-${d.id}')">인쇄</button>
+              <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+            </div>
           </div>
           <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           ${formHtml}
@@ -606,11 +634,15 @@
       const code = doc && doc.approval_doc_types ? doc.approval_doc_types.code : 'vacation';
       const renderer = FORM_RENDERERS[code];
       const formHtml = doc && renderer ? renderer(doc.content, false, s.all_steps) : '';
+      if (doc) printStore['approve-' + doc.id] = formHtml;
       return `
         <div class="doc">
           <div class="doc-top">
             <div class="doc-title">${doc ? doc.title : ''}</div>
-            <div class="badge pending">${s.step_name}</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${doc ? `<button class="ghost print-btn" onclick="printDoc('approve-${doc.id}')">인쇄</button>` : ''}
+              <div class="badge pending">${s.step_name}</div>
+            </div>
           </div>
           <div class="doc-meta">기안자: ${drafterName}</div>
           ${formHtml}
