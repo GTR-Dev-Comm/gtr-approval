@@ -6,11 +6,19 @@ module.exports = async (req, res) => {
 
   const supabase = getSupabase();
 
-  const { data: documents, error } = await supabase
+  let query = supabase
     .from('approval_documents')
     .select('id, title, content, status, current_step, created_at, doc_type_id, fulfillment_status, fulfilled_at, approval_doc_types(name, code)')
     .eq('drafter_id', payload.sub)
     .order('created_at', { ascending: false });
+
+  const { doc_type_code } = req.query || {};
+  if (doc_type_code) {
+    const { data: dt } = await supabase.from('approval_doc_types').select('id').eq('code', doc_type_code).maybeSingle();
+    if (dt) query = query.eq('doc_type_id', dt.id);
+  }
+
+  const { data: documents, error } = await query;
 
   if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 

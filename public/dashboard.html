@@ -159,6 +159,7 @@
     <div class="tab active" data-panel="new">새 문서 작성</div>
     <div class="tab" data-panel="my">내 문서</div>
     <div class="tab" data-panel="approve">결재할 문서</div>
+    <div class="tab" data-panel="history">완료된 문서</div>
   </div>
 
   <!-- 새 문서 작성 -->
@@ -197,12 +198,20 @@
 
   <!-- 내 문서 -->
   <div class="panel" id="panel-my">
+    <div class="doctype-picker" id="my-filter"></div>
     <div id="my-list"></div>
   </div>
 
   <!-- 결재할 문서 -->
   <div class="panel" id="panel-approve">
+    <div class="doctype-picker" id="approve-filter"></div>
     <div id="approve-list"></div>
+  </div>
+
+  <!-- 완료된 문서 -->
+  <div class="panel" id="panel-history">
+    <div class="doctype-picker" id="history-filter"></div>
+    <div id="history-list"></div>
   </div>
 
   <!-- 전체 조회 (팀장/개발이사/회계담당/경영지원팀장 전용) -->
@@ -266,6 +275,7 @@
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       if (tab.dataset.panel === 'my') loadMyDocuments();
       if (tab.dataset.panel === 'approve') loadPendingApprovals();
+      if (tab.dataset.panel === 'history') loadHistoryDocuments();
       if (tab.dataset.panel === 'scope') loadScopeDocuments();
     });
   });
@@ -770,14 +780,33 @@
   }
   const stepStatusLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
 
+  // ---------- 문서종류 필터 공통 헬퍼 ----------
+  const filterState = { my: '', approve: '', history: '', scope: '' };
+  function buildTypeFilter(containerId, key, onChange) {
+    const el = document.getElementById(containerId);
+    const options = [{ code: '', name: '전체' }, ...Object.keys(DOC_DEFS).map((c) => ({ code: c, name: DOC_DEFS[c].name }))];
+    el.innerHTML = options.map((o) =>
+      `<div class="doctype-btn ${o.code === filterState[key] ? 'active' : ''}" data-code="${o.code}">${o.name}</div>`
+    ).join('');
+    el.querySelectorAll('.doctype-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        filterState[key] = btn.dataset.code;
+        buildTypeFilter(containerId, key, onChange);
+        onChange();
+      });
+    });
+  }
+
   async function loadMyDocuments() {
+    buildTypeFilter('my-filter', 'my', loadMyDocuments);
     const listEl = document.getElementById('my-list');
     listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
-    const res = await fetch('/api/documents/my', { headers: authHeaders() });
+    const qs = filterState.my ? ('?doc_type_code=' + encodeURIComponent(filterState.my)) : '';
+    const res = await fetch('/api/documents/my' + qs, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
     if (!data.documents || data.documents.length === 0) {
-      listEl.innerHTML = '<div class="empty">아직 상신한 문서가 없습니다.</div>';
+      listEl.innerHTML = '<div class="empty">해당하는 문서가 없습니다.</div>';
       return;
     }
     listEl.innerHTML = data.documents.map((d) => {
@@ -815,9 +844,11 @@
 
   // ---------- 결재할 문서 ----------
   async function loadPendingApprovals() {
+    buildTypeFilter('approve-filter', 'approve', loadPendingApprovals);
     const listEl = document.getElementById('approve-list');
     listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
-    const res = await fetch('/api/documents/pending', { headers: authHeaders() });
+    const qs = filterState.approve ? ('?doc_type_code=' + encodeURIComponent(filterState.approve)) : '';
+    const res = await fetch('/api/documents/pending' + qs, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
     if (!data.pending || data.pending.length === 0) {
@@ -884,28 +915,53 @@
     else alert('처리 중 오류가 발생했습니다.');
   }
 
-  // ---------- 전체 조회 (팀장/개발이사/회계담당/경영지원팀장) ----------
-  let scopeFilterCode = '';
-  function buildScopeFilter() {
-    const el = document.getElementById('scope-filter');
-    const options = [{ code: '', name: '전체' }, ...Object.keys(DOC_DEFS).map((c) => ({ code: c, name: DOC_DEFS[c].name }))];
-    el.innerHTML = options.map((o) =>
-      `<div class="doctype-btn ${o.code === scopeFilterCode ? 'active' : ''}" data-code="${o.code}">${o.name}</div>`
-    ).join('');
-    el.querySelectorAll('.doctype-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        scopeFilterCode = btn.dataset.code;
-        buildScopeFilter();
-        loadScopeDocuments();
-      });
-    });
+  // ---------- 완료된 문서 ----------
+  async function loadHistoryDocuments() {
+    buildTypeFilter('history-filter', 'history', loadHistoryDocuments);
+    const listEl = document.getElementById('history-list');
+    listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
+    const qs = filterState.history ? ('?doc_type_code=' + encodeURIComponent(filterState.history)) : '';
+    const res = await fetch('/api/documents/history' + qs, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
+    if (!data.documents || data.documents.length === 0) {
+      listEl.innerHTML = '<div class="empty">완료된 문서가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = data.documents.map((d) => {
+      const code = d.approval_doc_types ? d.approval_doc_types.code : 'vacation';
+      const renderer = FORM_RENDERERS[code];
+      const formHtml = renderer ? renderer(d.content, false, d.steps) : '';
+      printStore['history-' + d.id] = formHtml;
+      const drafterName = d.approval_employees ? d.approval_employees.name : '';
+      return `
+        <div class="doc">
+          <div class="doc-top" onclick="toggleDetail('history-detail-${d.id}')">
+            <div class="doc-title">${d.title}<span class="chev" id="chev-history-detail-${d.id}">▾</span></div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('history-${d.id}')">인쇄</button>
+              <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+              ${fulfillmentBadge(d)}
+            </div>
+          </div>
+          <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          <div id="history-detail-${d.id}" class="doc-detail" style="display:none;">
+          ${formHtml}
+          <div class="doc-steps">
+            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
+          </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
+  // ---------- 전체 조회 (팀장/개발이사/회계담당/경영지원팀장) ----------
   async function loadScopeDocuments() {
-    buildScopeFilter();
+    buildTypeFilter('scope-filter', 'scope', loadScopeDocuments);
     const listEl = document.getElementById('scope-list');
     listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
-    const qs = scopeFilterCode ? ('?doc_type_code=' + encodeURIComponent(scopeFilterCode)) : '';
+    const qs = filterState.scope ? ('?doc_type_code=' + encodeURIComponent(filterState.scope)) : '';
     const res = await fetch('/api/documents/scope' + qs, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }

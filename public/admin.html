@@ -47,6 +47,11 @@
   <div class="section-title">전체 문서 관리</div>
   <p class="sub">상태와 관계없이 모든 문서를 삭제할 수 있습니다 (관리자 전용). 삭제하면 되돌릴 수 없습니다.</p>
   <div id="doc-list"></div>
+
+  <div class="section-title">비밀번호 초기화</div>
+  <p class="sub">아이디/비밀번호를 잊어버린 직원을 검색해서 비밀번호를 새로 지정할 수 있습니다.</p>
+  <input id="emp-search" placeholder="이름, 아이디, 전화번호로 검색" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; margin-bottom:12px; box-sizing:border-box;" />
+  <div id="emp-list"></div>
 </div>
 
 <script>
@@ -136,7 +141,70 @@
     else alert(data.error || '삭제 중 오류가 발생했습니다.');
   }
 
-  if (token) { load(); loadDocs(); }
+  if (token) { load(); loadDocs(); loadEmployees(); }
+
+  let allEmployees = [];
+  async function loadEmployees() {
+    const res = await fetch('/api/admin/employees', { headers: { Authorization: 'Bearer ' + token } });
+    const data = await res.json();
+    if (!res.ok) return;
+    allEmployees = data.employees || [];
+    renderEmployees(allEmployees);
+  }
+
+  function renderEmployees(list) {
+    const el = document.getElementById('emp-list');
+    if (list.length === 0) {
+      el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+      return;
+    }
+    el.innerHTML = list.slice(0, 50).map((e) => {
+      const dept = e.approval_departments ? e.approval_departments.name : '';
+      const idText = e.login_id ? e.login_id : '(아직 미설정)';
+      return `
+        <div class="row" data-id="${e.id}">
+          <div class="info">
+            <b>${e.name}</b> <span style="color:#9aa79e;">(${idText})</span>
+            <div class="meta">${dept || '-'} · ${e.phone || '전화번호 없음'}</div>
+          </div>
+          <div class="actions">
+            ${e.login_id ? `<button class="approve" onclick="resetPassword('${e.id}')">비밀번호 초기화</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('emp-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) return renderEmployees(allEmployees);
+    const filtered = allEmployees.filter((emp) =>
+      (emp.name || '').toLowerCase().includes(q) ||
+      (emp.login_id || '').toLowerCase().includes(q) ||
+      (emp.phone || '').includes(q)
+    );
+    renderEmployees(filtered);
+  });
+
+  async function resetPassword(employee_id) {
+    const custom = prompt('새 비밀번호를 입력하세요 (6자 이상). 비워두면 자동으로 만들어드립니다.');
+    if (custom === null) return; // 취소
+    if (custom && custom.length > 0 && custom.length < 6) {
+      alert('비밀번호는 6자 이상이어야 합니다.');
+      return;
+    }
+    const res = await fetch('/api/admin/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ employee_id, new_password: custom || undefined }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(`아이디: ${data.login_id}\n새 비밀번호: ${data.new_password}\n\n이 내용을 해당 직원에게 전달해주세요.`);
+    } else {
+      alert(data.error || '초기화 중 오류가 발생했습니다.');
+    }
+  }
 </script>
 </body>
 </html>
