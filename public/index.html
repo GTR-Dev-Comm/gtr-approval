@@ -138,6 +138,7 @@
   <div class="card">
     <div class="tabs">
       <div class="tab active" data-panel="login">로그인</div>
+      <div class="tab" data-panel="activate">최초 설정</div>
       <div class="tab" data-panel="signup">가입 신청</div>
     </div>
 
@@ -155,6 +156,20 @@
       </div>
       <button class="primary" id="login-btn">로그인</button>
       <div class="msg" id="login-msg"></div>
+    </div>
+
+    <!-- 최초 설정 (사전등록자) -->
+    <div class="panel" id="panel-activate">
+      <h1>최초 설정</h1>
+      <p class="sub">명단에 미리 등록된 분만 가능합니다. 본인 전화번호를 입력하고, 사용하실 아이디와 비밀번호를 정해주세요.</p>
+      <label>전화번호</label>
+      <input id="activate-phone" placeholder="010-0000-0000" />
+      <label>아이디 (4자 이상)</label>
+      <input id="activate-id" autocomplete="username" />
+      <label>비밀번호 (6자 이상)</label>
+      <input id="activate-pw" type="password" autocomplete="new-password" />
+      <button class="primary" id="activate-btn">설정하고 로그인</button>
+      <div class="msg" id="activate-msg"></div>
     </div>
 
     <!-- 가입 신청 -->
@@ -255,6 +270,32 @@
       setTimeout(() => { window.location.href = '/dashboard.html'; }, 600);
     } catch (e) {
       showMsg('login-msg', '네트워크 오류가 발생했습니다.', false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('activate-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('activate-btn');
+    const phone = document.getElementById('activate-phone').value.trim();
+    const login_id = document.getElementById('activate-id').value.trim();
+    const password = document.getElementById('activate-pw').value;
+    if (!phone || !login_id || !password) return showMsg('activate-msg', '전화번호, 아이디, 비밀번호를 모두 입력해주세요.', false);
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, login_id, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return showMsg('activate-msg', data.error || '설정에 실패했습니다.', false);
+      localStorage.setItem('gtr_approval_token', data.token);
+      localStorage.setItem('gtr_approval_employee', JSON.stringify(data.employee));
+      showMsg('activate-msg', '설정이 완료되었습니다. 이동 중...', true);
+      setTimeout(() => { window.location.href = '/dashboard.html'; }, 600);
+    } catch (e) {
+      showMsg('activate-msg', '네트워크 오류가 발생했습니다.', false);
     } finally {
       btn.disabled = false;
     }

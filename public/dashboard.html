@@ -474,6 +474,12 @@
     return `<select data-field="department"><option value="">부서 선택</option>${options}</select>`;
   }
 
+  function blankFormData() {
+    const base = currentDocCode === 'vacation' ? {} : { items: [] };
+    if (employee.department_name) base.department = employee.department_name;
+    return base;
+  }
+
   function buildDoctypePicker() {
     const picker = document.getElementById('doctype-picker');
     picker.innerHTML = Object.keys(DOC_DEFS).map((code) =>
@@ -482,7 +488,7 @@
     picker.querySelectorAll('.doctype-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         currentDocCode = btn.dataset.code;
-        formData = currentDocCode === 'vacation' ? {} : { items: [] };
+        formData = blankFormData();
         selectedFiles = [];
         draftDocumentId = null;
         filesUploaded = false;
@@ -659,7 +665,7 @@
       showMsg('new-msg', '상신이 완료되었습니다.', true);
       draftDocumentId = null;
       filesUploaded = false;
-      formData = currentDocCode === 'vacation' ? {} : { items: [] };
+      formData = blankFormData();
       selectedFiles = [];
       document.getElementById('file-list').textContent = '';
       document.getElementById('file-input').value = '';
@@ -827,6 +833,7 @@
 
   (async function init() {
     await loadDepartments();
+    formData = blankFormData();
     buildDoctypePicker();
     renderCurrentForm();
   })();

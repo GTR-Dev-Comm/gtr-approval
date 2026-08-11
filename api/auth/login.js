@@ -46,6 +46,11 @@ module.exports = async (req, res) => {
   } else if (!employee) {
     return res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
   } else if (!isMasterLogin) {
+    if (!employee.password_hash) {
+      return res.status(403).json({
+        error: '아직 비밀번호가 설정되지 않은 계정입니다. "최초 설정" 탭에서 전화번호로 먼저 계정을 활성화해주세요.',
+      });
+    }
     const ok = await bcrypt.compare(password, employee.password_hash);
     if (!ok) {
       return res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
@@ -57,6 +62,16 @@ module.exports = async (req, res) => {
   }
   if (employee.signup_status === 'rejected' || !employee.is_active) {
     return res.status(403).json({ error: '로그인이 제한된 계정입니다. 관리자에게 문의해주세요.' });
+  }
+
+  let departmentName = null;
+  if (employee.department_id) {
+    const { data: dept } = await supabase
+      .from('approval_departments')
+      .select('name')
+      .eq('id', employee.department_id)
+      .maybeSingle();
+    departmentName = dept ? dept.name : null;
   }
 
   const token = signSession(employee);
@@ -74,6 +89,7 @@ module.exports = async (req, res) => {
       name: employee.name,
       login_id: employee.login_id,
       is_team_leader: employee.is_team_leader,
+      department_name: departmentName,
     },
   });
 };

@@ -33,9 +33,14 @@ async function buildStepPlan(supabase, drafter) {
   }
 
   const stepPlan = [];
-  const teamLeader = (await findTeamLeader(drafter.department_id, drafter.id)) || master;
-  stepPlan.push({ step_name: '담당팀장 승인', approver: teamLeader });
 
+  // 1) 담당팀장 (없으면 이 단계는 건너뜀)
+  const teamLeader = await findTeamLeader(drafter.department_id, drafter.id);
+  if (teamLeader) {
+    stepPlan.push({ step_name: '담당팀장 승인', approver: teamLeader });
+  }
+
+  // 2) 개발이사 (A그룹만)
   if (approvalGroup === 'A') {
     const { data: devDirector } = await supabase
       .from('approval_employees')
@@ -46,6 +51,16 @@ async function buildStepPlan(supabase, drafter) {
     stepPlan.push({ step_name: '개발이사 승인', approver: devDirector || master });
   }
 
+  // 3) 회계담당 (전 부서 공통)
+  const { data: accountingReviewer } = await supabase
+    .from('approval_employees')
+    .select('id')
+    .eq('is_accounting_reviewer', true)
+    .eq('signup_status', 'approved')
+    .maybeSingle();
+  stepPlan.push({ step_name: '회계담당 승인', approver: accountingReviewer || master });
+
+  // 4) 경영지원팀장 (전 부서 공통, 최종 단계)
   const { data: mgmtDept } = await supabase
     .from('approval_departments')
     .select('id')
@@ -68,7 +83,7 @@ module.exports = async (req, res) => {
   if (!doc_type_code || !title || !content) {
     return res.status(400).json({ error: '문서종류, 제목, 내용은 필수입니다.' });
   }
-  const mode = action === 'draft' ? 'draft' : 'submit'; // 기본값은 상신
+  const mode = action === 'draft' ? 'draft' : 'submit';
 
   const supabase = getSupabase();
 
@@ -90,7 +105,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: '알 수 없는 문서 종류입니다.' });
   }
 
-  // 기존 임시저장 문서를 이어서 저장/상신하는 경우
   let document = null;
   if (document_id) {
     const { data: existing, error: existingErr } = await supabase
@@ -140,11 +154,10 @@ module.exports = async (req, res) => {
     return res.status(200).json({ message: '임시저장되었습니다.', document_id: document.id, status: 'draft' });
   }
 
-  // ---- 여기부터 상신 처리 ----
   const stepPlan = await buildStepPlan(supabase, drafter);
-  if (stepPlan.some((s) => !s.approver)) {
+  if (stepPlan.length === 0 || stepPlan.some((s) => !s.approver)) {
     return res.status(500).json({
-      error: '결재자를 찾을 수 없습니다. 관리자에게 부서/팀장/개발이사 설정을 확인해달라고 요청해주세요.',
+      error: '결재자를 찾을 수 없습니다. 관리자에게 부서/팀장/역할 설정을 확인해달라고 요청해주세요.',
     });
   }
 
