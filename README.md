@@ -100,3 +100,10 @@ insert into approval_departments (name) values
 ### 적용 방법
 1. Supabase SQL Editor에서 `migrations/005_notifications_cascade.sql` 실행 (문서 삭제 시 관련 알림도 함께 지워지도록)
 2. `public/dashboard.html`, `api/documents/create.js`, `api/documents/delete.js`를 GitHub에 다시 업로드
+
+## 7단계 (완료) — 관리자는 모든 문서 삭제 가능
+- 관리자(mcjjang) 계정으로 로그인하면, `/admin.html`에 "전체 문서 관리" 섹션이 추가되어 **상태와 관계없이(임시저장/진행중/승인완료/반려 모두) 어떤 문서든 삭제**할 수 있습니다.
+- 일반 직원은 여전히 자기가 쓴 문서 중 임시저장/반려 상태만 삭제할 수 있습니다 (기존과 동일).
+
+### 적용 방법
+`public/admin.html`, `api/admin/documents.js`, `api/documents/delete.js`를 GitHub에 다시 업로드하세요.

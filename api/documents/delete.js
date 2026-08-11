@@ -19,12 +19,16 @@ module.exports = async (req, res) => {
     .maybeSingle();
 
   if (error || !doc) return res.status(404).json({ error: '문서를 찾을 수 없습니다.' });
-  if (doc.drafter_id !== payload.sub) {
-    return res.status(403).json({ error: '본인이 작성한 문서만 삭제할 수 있습니다.' });
+
+  if (!payload.is_master) {
+    if (doc.drafter_id !== payload.sub) {
+      return res.status(403).json({ error: '본인이 작성한 문서만 삭제할 수 있습니다.' });
+    }
+    if (!['draft', 'rejected'].includes(doc.status)) {
+      return res.status(409).json({ error: '임시저장 또는 반려된 문서만 삭제할 수 있습니다.' });
+    }
   }
-  if (!['draft', 'rejected'].includes(doc.status)) {
-    return res.status(409).json({ error: '임시저장 또는 반려된 문서만 삭제할 수 있습니다.' });
-  }
+  // 관리자(마스터) 계정은 작성자/상태와 무관하게 모든 문서를 삭제할 수 있습니다.
 
   // approval_notifications 테이블은 cascade 삭제가 안 걸려있을 수 있어 먼저 정리
   await supabase.from('approval_notifications').delete().eq('document_id', document_id);

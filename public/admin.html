@@ -30,6 +30,12 @@
   .empty { text-align: center; color: #9aa79e; padding: 60px 0; font-size: 14px; }
   .gate { max-width: 360px; margin: 80px auto; text-align: center; }
   .gate p { color: #7a8a80; font-size: 14px; }
+  .section-title { font-size: 15px; font-weight: 700; margin: 36px 0 4px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .badge.draft { background: #eef0ee; color: #6b7a71; }
+  .badge.pending { background: #fbf1de; color: #c98a2c; }
+  .badge.approved { background: var(--green-soft); color: var(--green-deep); }
+  .badge.rejected { background: var(--red-soft); color: var(--red); }
 </style>
 </head>
 <body>
@@ -37,6 +43,10 @@
   <h1>가입 승인 관리</h1>
   <p class="sub">가입 신청한 직원을 승인하거나 반려할 수 있습니다.</p>
   <div id="list"></div>
+
+  <div class="section-title">전체 문서 관리</div>
+  <p class="sub">상태와 관계없이 모든 문서를 삭제할 수 있습니다 (관리자 전용). 삭제하면 되돌릴 수 없습니다.</p>
+  <div id="doc-list"></div>
 </div>
 
 <script>
@@ -44,6 +54,7 @@
   if (!token) {
     document.body.innerHTML = '<div class="gate"><h1>로그인이 필요합니다</h1><p>관리자 계정으로 먼저 로그인해주세요.</p></div>';
   }
+  const statusLabel = { draft: '임시저장', pending: '진행중', approved: '승인완료', rejected: '반려' };
 
   async function load() {
     const res = await fetch('/api/admin/pending-employees', {
@@ -83,7 +94,49 @@
     else alert('처리 중 오류가 발생했습니다.');
   }
 
-  if (token) load();
+  async function loadDocs() {
+    const res = await fetch('/api/admin/documents', { headers: { Authorization: 'Bearer ' + token } });
+    const data = await res.json();
+    const list = document.getElementById('doc-list');
+    if (!res.ok) {
+      list.innerHTML = '<div class="empty">' + (data.error || '조회에 실패했습니다.') + '</div>';
+      return;
+    }
+    if (!data.documents || data.documents.length === 0) {
+      list.innerHTML = '<div class="empty">등록된 문서가 없습니다.</div>';
+      return;
+    }
+    list.innerHTML = data.documents.map((d) => {
+      const typeName = d.approval_doc_types ? d.approval_doc_types.name : '';
+      const drafterName = d.approval_employees ? d.approval_employees.name : '';
+      return `
+        <div class="row" data-id="${d.id}">
+          <div class="info">
+            <b>${d.title}</b>
+            <span class="badge ${d.status}" style="margin-left:8px;">${statusLabel[d.status] || d.status}</span>
+            <div class="meta">${typeName} · 작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          </div>
+          <div class="actions">
+            <button class="reject" onclick="deleteDoc('${d.id}')">삭제</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function deleteDoc(document_id) {
+    if (!confirm('이 문서를 삭제하시겠습니까? 상태와 관계없이 완전히 삭제되며 되돌릴 수 없습니다.')) return;
+    const res = await fetch('/api/documents/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ document_id }),
+    });
+    const data = await res.json();
+    if (res.ok) loadDocs();
+    else alert(data.error || '삭제 중 오류가 발생했습니다.');
+  }
+
+  if (token) { load(); loadDocs(); }
 </script>
 </body>
 </html>
