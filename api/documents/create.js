@@ -2,39 +2,7 @@ const { getSupabase, requireAuth } = require('../_lib');
 
 const MGMT_SUPPORT_DEPT_NAME = '경영지원팀';
 
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
-  }
-  const payload = requireAuth(req, res);
-  if (!payload) return;
-
-  const { doc_type_code, title, content } = req.body || {};
-  if (!doc_type_code || !title || !content) {
-    return res.status(400).json({ error: '문서종류, 제목, 내용은 필수입니다.' });
-  }
-
-  const supabase = getSupabase();
-
-  const { data: drafter, error: drafterErr } = await supabase
-    .from('approval_employees')
-    .select('*')
-    .eq('id', payload.sub)
-    .maybeSingle();
-  if (drafterErr || !drafter) {
-    return res.status(401).json({ error: '작성자 정보를 확인할 수 없습니다.' });
-  }
-
-  const { data: docType, error: docTypeErr } = await supabase
-    .from('approval_doc_types')
-    .select('id, code, name')
-    .eq('code', doc_type_code)
-    .maybeSingle();
-  if (docTypeErr || !docType) {
-    return res.status(400).json({ error: '알 수 없는 문서 종류입니다.' });
-  }
-
-  // 마스터 계정을 최종 안전망 승인자로 사용 (담당자를 못 찾을 경우)
+async function buildStepPlan(supabase, drafter) {
   const { data: master } = await supabase
     .from('approval_employees')
     .select('id')
@@ -54,7 +22,6 @@ module.exports = async (req, res) => {
     return data;
   }
 
-  // 기안자 부서의 결재그룹(A/B) 확인
   let approvalGroup = 'B';
   if (drafter.department_id) {
     const { data: dept } = await supabase
@@ -65,9 +32,7 @@ module.exports = async (req, res) => {
     if (dept && dept.approval_group) approvalGroup = dept.approval_group;
   }
 
-  // 결재라인 구성: 담당팀장 → (A그룹만) 개발이사 → 경영지원팀장
   const stepPlan = [];
-
   const teamLeader = (await findTeamLeader(drafter.department_id, drafter.id)) || master;
   stepPlan.push({ step_name: '담당팀장 승인', approver: teamLeader });
 
@@ -89,27 +54,106 @@ module.exports = async (req, res) => {
   const mgmtLeader = mgmtDept ? await findTeamLeader(mgmtDept.id, null) : null;
   stepPlan.push({ step_name: '경영지원팀장 승인', approver: mgmtLeader || master });
 
+  return stepPlan;
+}
+
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
+  }
+  const payload = requireAuth(req, res);
+  if (!payload) return;
+
+  const { doc_type_code, title, content, action, document_id } = req.body || {};
+  if (!doc_type_code || !title || !content) {
+    return res.status(400).json({ error: '문서종류, 제목, 내용은 필수입니다.' });
+  }
+  const mode = action === 'draft' ? 'draft' : 'submit'; // 기본값은 상신
+
+  const supabase = getSupabase();
+
+  const { data: drafter, error: drafterErr } = await supabase
+    .from('approval_employees')
+    .select('*')
+    .eq('id', payload.sub)
+    .maybeSingle();
+  if (drafterErr || !drafter) {
+    return res.status(401).json({ error: '작성자 정보를 확인할 수 없습니다.' });
+  }
+
+  const { data: docType, error: docTypeErr } = await supabase
+    .from('approval_doc_types')
+    .select('id, code, name')
+    .eq('code', doc_type_code)
+    .maybeSingle();
+  if (docTypeErr || !docType) {
+    return res.status(400).json({ error: '알 수 없는 문서 종류입니다.' });
+  }
+
+  // 기존 임시저장 문서를 이어서 저장/상신하는 경우
+  let document = null;
+  if (document_id) {
+    const { data: existing, error: existingErr } = await supabase
+      .from('approval_documents')
+      .select('*')
+      .eq('id', document_id)
+      .maybeSingle();
+    if (existingErr || !existing) {
+      return res.status(404).json({ error: '문서를 찾을 수 없습니다.' });
+    }
+    if (existing.drafter_id !== drafter.id) {
+      return res.status(403).json({ error: '본인이 작성한 문서만 수정할 수 있습니다.' });
+    }
+    if (existing.status !== 'draft') {
+      return res.status(409).json({ error: '이미 상신되었거나 처리된 문서는 수정할 수 없습니다.' });
+    }
+    const { data: updated, error: updateErr } = await supabase
+      .from('approval_documents')
+      .update({ title, content, updated_at: new Date().toISOString() })
+      .eq('id', document_id)
+      .select()
+      .single();
+    if (updateErr || !updated) {
+      return res.status(500).json({ error: '문서 저장 중 오류가 발생했습니다.' });
+    }
+    document = updated;
+  } else {
+    const { data: created, error: createErr } = await supabase
+      .from('approval_documents')
+      .insert({
+        doc_type_id: docType.id,
+        drafter_id: drafter.id,
+        title,
+        content,
+        status: 'draft',
+        current_step: 0,
+      })
+      .select()
+      .single();
+    if (createErr || !created) {
+      return res.status(500).json({ error: '문서 생성 중 오류가 발생했습니다.' });
+    }
+    document = created;
+  }
+
+  if (mode === 'draft') {
+    return res.status(200).json({ message: '임시저장되었습니다.', document_id: document.id, status: 'draft' });
+  }
+
+  // ---- 여기부터 상신 처리 ----
+  const stepPlan = await buildStepPlan(supabase, drafter);
   if (stepPlan.some((s) => !s.approver)) {
     return res.status(500).json({
       error: '결재자를 찾을 수 없습니다. 관리자에게 부서/팀장/개발이사 설정을 확인해달라고 요청해주세요.',
     });
   }
 
-  const { data: document, error: docErr } = await supabase
+  const { error: statusErr } = await supabase
     .from('approval_documents')
-    .insert({
-      doc_type_id: docType.id,
-      drafter_id: drafter.id,
-      title,
-      content,
-      status: 'pending',
-      current_step: 1,
-    })
-    .select()
-    .single();
-
-  if (docErr || !document) {
-    return res.status(500).json({ error: '문서 생성 중 오류가 발생했습니다.' });
+    .update({ status: 'pending', current_step: 1, updated_at: new Date().toISOString() })
+    .eq('id', document.id);
+  if (statusErr) {
+    return res.status(500).json({ error: '상신 처리 중 오류가 발생했습니다.' });
   }
 
   const stepsToInsert = stepPlan.map((s, idx) => ({
@@ -131,5 +175,5 @@ module.exports = async (req, res) => {
     message: `${drafter.name}님이 상신한 "${title}" 문서가 결재를 기다리고 있습니다.`,
   });
 
-  return res.status(200).json({ message: '상신되었습니다.', document_id: document.id });
+  return res.status(200).json({ message: '상신되었습니다.', document_id: document.id, status: 'pending' });
 };
