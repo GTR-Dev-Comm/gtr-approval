@@ -748,8 +748,8 @@
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
           </div>
           <div style="margin-top:12px; display:flex; gap:8px;">
-            ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft(${d.id})">상신하기</button>` : ''}
-            ${canDelete ? `<button class="reject" onclick="deleteMyDocument(${d.id})">삭제</button>` : ''}
+            ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
+            ${canDelete ? `<button class="reject" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
           </div>
         </div>
       `;
@@ -787,8 +787,8 @@
           ${formHtml}
           <div id="att-${doc ? doc.id : ''}" class="att-list"></div>
           <div style="margin-top:12px; display:flex; gap:8px;">
-            <button class="approve" onclick="act(${s.id}, 'approve')">승인</button>
-            <button class="reject" onclick="act(${s.id}, 'reject')">반려</button>
+            <button class="approve" onclick="act('${s.id}', 'approve')">승인</button>
+            <button class="reject" onclick="act('${s.id}', 'reject')">반려</button>
           </div>
         </div>
       `;
