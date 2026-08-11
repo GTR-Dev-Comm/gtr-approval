@@ -83,9 +83,24 @@ module.exports = async (req, res) => {
       message: `"${document.title}" 문서가 결재를 기다리고 있습니다.`,
     });
   } else {
+    const { data: docType } = await supabase
+      .from('approval_doc_types')
+      .select('code')
+      .eq('id', document.doc_type_id)
+      .maybeSingle();
+
+    const initialFulfillment =
+      docType && docType.code === 'expense' ? 'pending_payment' :
+      docType && docType.code === 'purchase' ? 'pending_purchase' :
+      null;
+
     await supabase
       .from('approval_documents')
-      .update({ status: 'approved', updated_at: new Date().toISOString() })
+      .update({
+        status: 'approved',
+        fulfillment_status: initialFulfillment,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', document.id);
     await supabase.from('approval_notifications').insert({
       employee_id: document.drafter_id,

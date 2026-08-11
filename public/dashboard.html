@@ -101,6 +101,8 @@
   .doc-title { font-size: 14px; font-weight: 700; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
   .badge.draft { background: #eef0ee; color: #6b7a71; }
+  .badge.fulfill-pending { background: #fdeee0; color: #b5641f; }
+  .badge.fulfill-done { background: var(--green-soft); color: var(--green-deep); }
   .badge.pending { background: var(--amber-soft); color: var(--amber); }
   .badge.approved { background: var(--green-soft); color: var(--green-deep); }
   .badge.rejected { background: var(--red-soft); color: var(--red); }
@@ -150,7 +152,7 @@
 </header>
 
 <div class="wrap">
-  <div class="tabs">
+  <div class="tabs" id="main-tabs">
     <div class="tab active" data-panel="new">새 문서 작성</div>
     <div class="tab" data-panel="my">내 문서</div>
     <div class="tab" data-panel="approve">결재할 문서</div>
@@ -198,6 +200,12 @@
   <!-- 결재할 문서 -->
   <div class="panel" id="panel-approve">
     <div id="approve-list"></div>
+  </div>
+
+  <!-- 전체 조회 (팀장/개발이사/회계담당/경영지원팀장 전용) -->
+  <div class="panel" id="panel-scope">
+    <div class="doctype-picker" id="scope-filter"></div>
+    <div id="scope-list"></div>
   </div>
 </div>
 
@@ -247,8 +255,25 @@
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       if (tab.dataset.panel === 'my') loadMyDocuments();
       if (tab.dataset.panel === 'approve') loadPendingApprovals();
+      if (tab.dataset.panel === 'scope') loadScopeDocuments();
     });
   });
+
+  // 팀장/개발이사/회계담당만 "전체 조회" 탭 노출
+  if (employee.is_team_leader || employee.is_dev_director || employee.is_accounting_reviewer) {
+    const scopeTab = document.createElement('div');
+    scopeTab.className = 'tab';
+    scopeTab.dataset.panel = 'scope';
+    scopeTab.textContent = '전체 조회';
+    scopeTab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+      scopeTab.classList.add('active');
+      document.getElementById('panel-scope').classList.add('active');
+      loadScopeDocuments();
+    });
+    document.getElementById('main-tabs').appendChild(scopeTab);
+  }
 
   // ======================================================
   // 문서 양식 정의
@@ -720,6 +745,18 @@
   }
 
   const statusLabel = { draft: '임시저장', pending: '진행중', approved: '승인완료', rejected: '반려' };
+  function fulfillmentBadge(d) {
+    if (!d.fulfillment_status) return '';
+    const map = {
+      pending_payment: { text: '지급대기', cls: 'fulfill-pending' },
+      paid: { text: '지급완료', cls: 'fulfill-done' },
+      pending_purchase: { text: '구매대기', cls: 'fulfill-pending' },
+      purchased: { text: '구매완료', cls: 'fulfill-done' },
+    };
+    const info = map[d.fulfillment_status];
+    if (!info) return '';
+    return `<span class="badge ${info.cls}">${info.text}</span>`;
+  }
   const stepStatusLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
 
   async function loadMyDocuments() {
@@ -746,6 +783,7 @@
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="printDoc('my-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+              ${fulfillmentBadge(d)}
             </div>
           </div>
           <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
@@ -829,6 +867,76 @@
     });
     if (res.ok) loadPendingApprovals();
     else alert('처리 중 오류가 발생했습니다.');
+  }
+
+  // ---------- 전체 조회 (팀장/개발이사/회계담당/경영지원팀장) ----------
+  let scopeFilterCode = '';
+  function buildScopeFilter() {
+    const el = document.getElementById('scope-filter');
+    const options = [{ code: '', name: '전체' }, ...Object.keys(DOC_DEFS).map((c) => ({ code: c, name: DOC_DEFS[c].name }))];
+    el.innerHTML = options.map((o) =>
+      `<div class="doctype-btn ${o.code === scopeFilterCode ? 'active' : ''}" data-code="${o.code}">${o.name}</div>`
+    ).join('');
+    el.querySelectorAll('.doctype-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        scopeFilterCode = btn.dataset.code;
+        buildScopeFilter();
+        loadScopeDocuments();
+      });
+    });
+  }
+
+  async function loadScopeDocuments() {
+    buildScopeFilter();
+    const listEl = document.getElementById('scope-list');
+    listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
+    const qs = scopeFilterCode ? ('?doc_type_code=' + encodeURIComponent(scopeFilterCode)) : '';
+    const res = await fetch('/api/documents/scope' + qs, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
+    if (!data.documents || data.documents.length === 0) {
+      listEl.innerHTML = '<div class="empty">해당하는 문서가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = data.documents.map((d) => {
+      const code = d.approval_doc_types ? d.approval_doc_types.code : 'vacation';
+      const renderer = FORM_RENDERERS[code];
+      const formHtml = renderer ? renderer(d.content, false, d.steps) : '';
+      printStore['scope-' + d.id] = formHtml;
+      const drafterName = d.approval_employees ? d.approval_employees.name : '';
+      const canFulfill = employee.is_accounting_reviewer &&
+        ['pending_payment', 'pending_purchase'].includes(d.fulfillment_status);
+      return `
+        <div class="doc">
+          <div class="doc-top">
+            <div class="doc-title">${d.title}</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="ghost print-btn" onclick="printDoc('scope-${d.id}')">인쇄</button>
+              <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
+              ${fulfillmentBadge(d)}
+            </div>
+          </div>
+          <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          ${formHtml}
+          <div class="doc-steps">
+            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
+          </div>
+          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function fulfillDoc(document_id) {
+    if (!confirm('완료 처리하시겠습니까?')) return;
+    const res = await fetch('/api/documents/fulfill', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({ document_id }),
+    });
+    const data = await res.json();
+    if (res.ok) loadScopeDocuments();
+    else alert(data.error || '처리 중 오류가 발생했습니다.');
   }
 
   (async function init() {

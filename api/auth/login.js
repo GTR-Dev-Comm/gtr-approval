@@ -89,6 +89,8 @@ module.exports = async (req, res) => {
       name: employee.name,
       login_id: employee.login_id,
       is_team_leader: employee.is_team_leader,
+      is_dev_director: employee.is_dev_director,
+      is_accounting_reviewer: employee.is_accounting_reviewer,
       department_name: departmentName,
     },
   });

@@ -147,3 +147,22 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `api/departments.js`를 GitHub에 다시 업로드하세요.
+
+## 11단계 (완료) — 승인완료 이후 후속 처리 단계 + 전체 조회 탭
+
+### 후속 처리 단계
+- **휴가신청서**: 승인완료가 최종 상태 (별도 후속 처리 없음)
+- **지출결의서**: 승인완료 후 "지급대기" → 회계담당(채유림)이 **지급완료** 처리
+- **구매요청서**: 승인완료 후 "구매대기" → 회계담당(채유림)이 **구매완료** 처리
+
+### 전체 조회 탭 (새로 추가)
+로그인한 사람의 역할에 따라 조회 범위가 자동으로 정해집니다.
+- **각 팀장**: 본인 팀 문서만
+- **개발이사(도승희)**: 개발이사 라인 7개 팀(기획·클라이언트·서버·웹앱·그래픽·영상·대회운영) 문서 전체
+- **회계담당(채유림)·경영지원팀장(이은혜)**: 전 부서 문서 전체
+- 상단에서 문서종류(휴가신청서/지출결의서/구매요청서)로 필터링 가능
+- 회계담당 계정으로 보면, 지급대기/구매대기 상태인 문서에 "지급완료 처리" / "구매완료 처리" 버튼이 함께 나타납니다
+
+### 적용 방법
+1. Supabase SQL Editor에서 `migrations/008_fulfillment_status.sql` 실행
+2. `public/dashboard.html`, `api/documents/act.js`, `api/documents/my.js`, `api/documents/scope.js`(신규), `api/documents/fulfill.js`(신규), `api/auth/login.js`, `api/auth/activate.js`를 GitHub에 다시 업로드

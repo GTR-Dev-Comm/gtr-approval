@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
 
   const { data: documents, error } = await supabase
     .from('approval_documents')
-    .select('id, title, content, status, current_step, created_at, doc_type_id, approval_doc_types(name, code)')
+    .select('id, title, content, status, current_step, created_at, doc_type_id, fulfillment_status, fulfilled_at, approval_doc_types(name, code)')
     .eq('drafter_id', payload.sub)
     .order('created_at', { ascending: false });
 

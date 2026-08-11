@@ -75,6 +75,8 @@ module.exports = async (req, res) => {
       name: updated.name,
       login_id: updated.login_id,
       is_team_leader: updated.is_team_leader,
+      is_dev_director: updated.is_dev_director,
+      is_accounting_reviewer: updated.is_accounting_reviewer,
       department_name: departmentName,
     },
   });
