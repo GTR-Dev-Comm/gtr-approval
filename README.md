@@ -166,3 +166,9 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 ### 적용 방법
 1. Supabase SQL Editor에서 `migrations/008_fulfillment_status.sql` 실행
 2. `public/dashboard.html`, `api/documents/act.js`, `api/documents/my.js`, `api/documents/scope.js`(신규), `api/documents/fulfill.js`(신규), `api/auth/login.js`, `api/auth/activate.js`를 GitHub에 다시 업로드
+
+## 12단계 (완료) — 내 문서/결재할 문서/전체 조회를 리스트+클릭펼침 방식으로 변경
+"내 문서", "결재할 문서", "전체 조회" 탭에서 이제 문서 목록이 제목·상태 배지만 보이는 요약 줄로 나오고, **줄을 클릭해야 서식 전체 내용이 펼쳐집니다.** 인쇄 버튼은 접힌 상태에서도 바로 누를 수 있습니다.
+
+### 적용 방법
+`public/dashboard.html`을 GitHub에 다시 업로드하세요.

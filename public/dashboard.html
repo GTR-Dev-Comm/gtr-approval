@@ -97,7 +97,10 @@
   .doc {
     border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background: #fff;
   }
-  .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; cursor: pointer; }
+  .doc-top .doc-title { flex: 1; }
+  .chev { color: #9aa79e; font-size: 11px; margin-left: 6px; }
+  .doc-detail { margin-top: 4px; }
   .doc-title { font-size: 14px; font-weight: 700; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
   .badge.draft { background: #eef0ee; color: #6b7a71; }
@@ -242,6 +245,14 @@
     if (!html) return;
     document.getElementById('print-area').innerHTML = html;
     window.print();
+  }
+  function toggleDetail(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const opening = el.style.display === 'none' || !el.style.display;
+    el.style.display = opening ? 'block' : 'none';
+    const chev = document.getElementById('chev-' + id);
+    if (chev) chev.textContent = opening ? '▴' : '▾';
   }
 
   // ---------- 탭 전환 ----------
@@ -778,15 +789,16 @@
       const canDelete = d.status === 'draft' || d.status === 'rejected';
       return `
         <div class="doc">
-          <div class="doc-top">
-            <div class="doc-title">${d.title}</div>
+          <div class="doc-top" onclick="toggleDetail('my-detail-${d.id}')">
+            <div class="doc-title">${d.title}<span class="chev" id="chev-my-detail-${d.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button class="ghost print-btn" onclick="printDoc('my-${d.id}')">인쇄</button>
+              <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('my-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
               ${fulfillmentBadge(d)}
             </div>
           </div>
           <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          <div id="my-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div class="doc-steps">
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
@@ -794,6 +806,7 @@
           <div style="margin-top:12px; display:flex; gap:8px;">
             ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
             ${canDelete ? `<button class="reject" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
+          </div>
           </div>
         </div>
       `;
@@ -820,19 +833,21 @@
       if (doc) printStore['approve-' + doc.id] = formHtml;
       return `
         <div class="doc">
-          <div class="doc-top">
-            <div class="doc-title">${doc ? doc.title : ''}</div>
+          <div class="doc-top" onclick="toggleDetail('approve-detail-${s.id}')">
+            <div class="doc-title">${doc ? doc.title : ''}<span class="chev" id="chev-approve-detail-${s.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
-              ${doc ? `<button class="ghost print-btn" onclick="printDoc('approve-${doc.id}')">인쇄</button>` : ''}
+              ${doc ? `<button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('approve-${doc.id}')">인쇄</button>` : ''}
               <div class="badge pending">${s.step_name}</div>
             </div>
           </div>
           <div class="doc-meta">기안자: ${drafterName}</div>
+          <div id="approve-detail-${s.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-${doc ? doc.id : ''}" class="att-list"></div>
           <div style="margin-top:12px; display:flex; gap:8px;">
             <button class="approve" onclick="act('${s.id}', 'approve')">승인</button>
             <button class="reject" onclick="act('${s.id}', 'reject')">반려</button>
+          </div>
           </div>
         </div>
       `;
@@ -908,20 +923,22 @@
         ['pending_payment', 'pending_purchase'].includes(d.fulfillment_status);
       return `
         <div class="doc">
-          <div class="doc-top">
-            <div class="doc-title">${d.title}</div>
+          <div class="doc-top" onclick="toggleDetail('scope-detail-${d.id}')">
+            <div class="doc-title">${d.title}<span class="chev" id="chev-scope-detail-${d.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button class="ghost print-btn" onclick="printDoc('scope-${d.id}')">인쇄</button>
+              <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('scope-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
               ${fulfillmentBadge(d)}
             </div>
           </div>
           <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          <div id="scope-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div class="doc-steps">
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
           </div>
-          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
+          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
+          </div>
         </div>
       `;
     }).join('');
