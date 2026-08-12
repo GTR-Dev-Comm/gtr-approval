@@ -240,3 +240,11 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/admin.html`, `api/admin/delete-employee.js`(신규)를 GitHub에 다시 업로드하세요.
+
+## 21단계 (완료) — 가입은 자동승인, 관리자는 비밀번호 초기화 등 계정관리만
+- "가입 신청" 탭에서 아이디/비밀번호를 만들면 **관리자 승인 없이 바로 계정이 생성되고 자동 로그인**됩니다.
+- 관리자(mcjjang)는 이제 신규 가입을 승인/반려할 필요가 없고, 대신 **비밀번호 초기화, 최초설정 초기화, 활성화/비활성화, 완전삭제** 같은 계정 관리 기능만 사용하시면 됩니다.
+- "가입 승인 관리" 섹션은 화면에 남아있지만, 이제 새 가입 건은 여기에 나타나지 않습니다 (항상 자동 처리되므로).
+
+### 적용 방법
+`public/index.html`, `public/admin.html`, `api/auth/signup.js`를 GitHub에 다시 업로드하세요.
