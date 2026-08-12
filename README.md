@@ -209,3 +209,14 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 ### 적용 방법
 1. Supabase SQL Editor에서 `migrations/009_annual_leave_days.sql` 실행
 2. `public/dashboard.html`, `public/admin.html`, `api/admin/employees.js`, `api/documents/leave-summary.js`(신규), `api/admin/set-leave-days.js`(신규)를 GitHub에 다시 업로드
+
+## 18단계 (완료) — 계정 활성화/비활성화 (중복 가입 정리용)
+`/admin.html` 직원 목록에 **"비활성화"/"활성화"** 버튼이 추가되었습니다. 최초설정 오류로 "가입 신청"을 통해 중복 계정이 만들어진 경우 등, 잘못된 계정을 로그인은 안 되게 막아둘 때 씁니다 (삭제는 아니고 비활성화만 — 되돌릴 수 있음).
+
+### 채유림님 케이스 해결 순서
+1. `/admin.html` → "비밀번호 초기화" 섹션에서 "채유림" 검색 → **가입 신청으로 만들어진(회계담당 표시 없는) 계정**을 "비활성화"
+2. 채유림님이 로그아웃 후 로그인 화면 → "최초 설정" 탭 → 전화번호 010-4083-7251로 다시 진행 (하이픈 자동입력 기능이 이미 적용되어 있어서 이번엔 정상 작동합니다) → 원래 회계담당 권한이 있는 계정이 활성화됨
+3. 다시 로그인해서 "결재할 문서" 탭에 지출결의서가 보이는지 확인
+
+### 적용 방법
+`public/admin.html`, `api/admin/toggle-active.js`(신규)를 GitHub에 다시 업로드하세요.

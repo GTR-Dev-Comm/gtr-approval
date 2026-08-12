@@ -163,15 +163,16 @@
       const dept = e.approval_departments ? e.approval_departments.name : '';
       const idText = e.login_id ? e.login_id : '(아직 미설정)';
       return `
-        <div class="row" data-id="${e.id}">
+        <div class="row" data-id="${e.id}" style="${e.is_active ? '' : 'opacity:.5;'}">
           <div class="info">
-            <b>${e.name}</b> <span style="color:#9aa79e;">(${idText})</span>
+            <b>${e.name}</b> <span style="color:#9aa79e;">(${idText})</span> ${e.is_active ? '' : '<span class="badge rejected">비활성</span>'}
             <div class="meta">${dept || '-'} · ${e.phone || '전화번호 없음'} · 연차 ${e.annual_leave_days != null ? e.annual_leave_days + '일' : '미설정'}</div>
           </div>
           <div class="actions">
             ${e.login_id ? `<button class="approve" onclick="resetPassword('${e.id}')">비밀번호 초기화</button>` : ''}
             ${e.phone ? `<button class="reject" onclick="resetActivation('${e.id}')">최초설정 초기화</button>` : ''}
             <button class="approve" onclick="setLeaveDays('${e.id}', ${e.annual_leave_days != null ? e.annual_leave_days : 15})">연차 설정</button>
+            <button class="reject" onclick="toggleActive('${e.id}')">${e.is_active ? '비활성화' : '활성화'}</button>
           </div>
         </div>
       `;
@@ -236,6 +237,17 @@
     const data = await res.json();
     if (res.ok) loadEmployees();
     else alert(data.error || '설정 중 오류가 발생했습니다.');
+  }
+  async function toggleActive(employee_id) {
+    if (!confirm('이 계정의 활성 상태를 변경하시겠습니까?')) return;
+    const res = await fetch('/api/admin/toggle-active', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ employee_id }),
+    });
+    const data = await res.json();
+    if (res.ok) loadEmployees();
+    else alert(data.error || '처리 중 오류가 발생했습니다.');
   }
 </script>
 </body>
