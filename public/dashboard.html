@@ -822,7 +822,7 @@
   const filterState = { my: '', approve: '', fulfill: '', history: '', scope: '' };
   function buildTypeFilter(containerId, key, onChange) {
     const el = document.getElementById(containerId);
-    const options = [{ code: '', name: '전체' }, ...Object.keys(DOC_DEFS).map((c) => ({ code: c, name: DOC_DEFS[c].name }))];
+    const options = [{ code: '', name: '전체' }, ...CREATABLE_DOC_CODES.map((c) => ({ code: c, name: DOC_DEFS[c].name }))];
     el.innerHTML = options.map((o) =>
       `<div class="doctype-btn ${o.code === filterState[key] ? 'active' : ''}" data-code="${o.code}">${o.name}</div>`
     ).join('');
