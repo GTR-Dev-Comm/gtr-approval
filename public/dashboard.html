@@ -124,6 +124,15 @@
   .msg.error { background: var(--red-soft); color: var(--red); }
   .msg.ok { background: var(--green-soft); color: var(--green-deep); }
 
+  .leave-card {
+    background: linear-gradient(135deg, var(--green-deep), var(--green)); color: #fff;
+    border-radius: 14px; padding: 18px 20px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .leave-card .num { font-size: 24px; font-weight: 800; }
+  .leave-card .lbl { font-size: 11px; opacity: .85; margin-top: 2px; }
+  .leave-card .stat { text-align: center; }
+
   .print-btn { font-size: 12px; padding: 6px 12px; }
 
   .a4-page {
@@ -198,6 +207,7 @@
 
   <!-- 내 문서 -->
   <div class="panel" id="panel-my">
+    <div id="leave-summary-card"></div>
     <div class="doctype-picker" id="my-filter"></div>
     <div id="my-list"></div>
   </div>
@@ -800,7 +810,34 @@
     });
   }
 
+  async function loadLeaveSummary() {
+    const el = document.getElementById('leave-summary-card');
+    try {
+      const res = await fetch('/api/documents/leave-summary', { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) { el.innerHTML = ''; return; }
+      const allowanceText = data.allowance != null ? data.allowance + '일' : '미설정';
+      const remainingText = data.remaining != null ? data.remaining + '일' : '-';
+      el.innerHTML = `
+        <div class="leave-card">
+          <div>
+            <div style="font-size:13px; font-weight:700;">${data.year}년 연차 현황</div>
+            <div style="font-size:11px; opacity:.8; margin-top:2px;">휴가신청서 기준 자동 계산 (연차=1일, 반차=0.5일)</div>
+          </div>
+          <div style="display:flex; gap:24px;">
+            <div class="stat"><div class="num">${allowanceText}</div><div class="lbl">총 부여</div></div>
+            <div class="stat"><div class="num">${data.used}일</div><div class="lbl">사용</div></div>
+            <div class="stat"><div class="num">${remainingText}</div><div class="lbl">잔여</div></div>
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      el.innerHTML = '';
+    }
+  }
+
   async function loadMyDocuments() {
+    loadLeaveSummary();
     buildTypeFilter('my-filter', 'my', loadMyDocuments);
     const listEl = document.getElementById('my-list');
     listEl.innerHTML = '<div class="empty">불러오는 중...</div>';

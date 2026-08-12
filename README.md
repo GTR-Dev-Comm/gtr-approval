@@ -200,3 +200,12 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`, `api/auth/login.js`를 GitHub에 다시 업로드하세요. 적용 후 mcjjang님은 **한 번 로그아웃했다가 다시 로그인**해야 링크가 보입니다 (기존 로그인 정보에는 이 표시가 없어서요).
+
+## 17단계 (완료) — 개인별 연차 사용/잔여 현황
+- "내 문서" 탭 맨 위에 **올해 연차 현황 카드**(총 부여 / 사용 / 잔여)가 자동으로 표시됩니다.
+- 계산 기준: 승인완료된 휴가신청서 중 휴가기간 시작일이 올해인 건들을 더합니다. 연차=1일, 반차=0.5일로 계산합니다. (공휴일/주말 제외 계산은 아직 반영 안 됨 — 달력 일수 그대로 계산합니다)
+- 관리자는 `/admin.html` 직원 목록에서 **"연차 설정"** 버튼으로 직원별 연간 부여 일수를 지정할 수 있습니다 (기본값 15일).
+
+### 적용 방법
+1. Supabase SQL Editor에서 `migrations/009_annual_leave_days.sql` 실행
+2. `public/dashboard.html`, `public/admin.html`, `api/admin/employees.js`, `api/documents/leave-summary.js`(신규), `api/admin/set-leave-days.js`(신규)를 GitHub에 다시 업로드

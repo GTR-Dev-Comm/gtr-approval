@@ -40,6 +40,7 @@
 </head>
 <body>
 <div class="wrap">
+  <a href="/dashboard.html" style="display:inline-block; font-size:13px; color:var(--green-deep); text-decoration:underline; margin-bottom:16px;">← 대시보드로 돌아가기</a>
   <h1>가입 승인 관리</h1>
   <p class="sub">가입 신청한 직원을 승인하거나 반려할 수 있습니다.</p>
   <div id="list"></div>
@@ -165,11 +166,12 @@
         <div class="row" data-id="${e.id}">
           <div class="info">
             <b>${e.name}</b> <span style="color:#9aa79e;">(${idText})</span>
-            <div class="meta">${dept || '-'} · ${e.phone || '전화번호 없음'}</div>
+            <div class="meta">${dept || '-'} · ${e.phone || '전화번호 없음'} · 연차 ${e.annual_leave_days != null ? e.annual_leave_days + '일' : '미설정'}</div>
           </div>
           <div class="actions">
             ${e.login_id ? `<button class="approve" onclick="resetPassword('${e.id}')">비밀번호 초기화</button>` : ''}
             ${e.phone ? `<button class="reject" onclick="resetActivation('${e.id}')">최초설정 초기화</button>` : ''}
+            <button class="approve" onclick="setLeaveDays('${e.id}', ${e.annual_leave_days != null ? e.annual_leave_days : 15})">연차 설정</button>
           </div>
         </div>
       `;
@@ -220,6 +222,20 @@
     } else {
       alert(data.error || '초기화 중 오류가 발생했습니다.');
     }
+  }
+  async function setLeaveDays(employee_id, current) {
+    const input = prompt('연간 연차 일수를 입력하세요 (숫자만)', current);
+    if (input === null) return;
+    const days = Number(input);
+    if (isNaN(days) || days < 0) return alert('올바른 숫자를 입력해주세요.');
+    const res = await fetch('/api/admin/set-leave-days', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ employee_id, annual_leave_days: days }),
+    });
+    const data = await res.json();
+    if (res.ok) loadEmployees();
+    else alert(data.error || '설정 중 오류가 발생했습니다.');
   }
 </script>
 </body>
