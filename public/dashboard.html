@@ -168,6 +168,7 @@
     <div class="tab active" data-panel="new">새 문서 작성</div>
     <div class="tab" data-panel="my">내 문서</div>
     <div class="tab" data-panel="approve">결재할 문서</div>
+    <div class="tab" data-panel="fulfill">지급/구매 대기</div>
     <div class="tab" data-panel="history">완료된 문서</div>
   </div>
 
@@ -215,6 +216,12 @@
   <div class="panel" id="panel-approve">
     <div class="doctype-picker" id="approve-filter"></div>
     <div id="approve-list"></div>
+  </div>
+
+  <!-- 지급/구매 대기 -->
+  <div class="panel" id="panel-fulfill">
+    <div class="doctype-picker" id="fulfill-filter"></div>
+    <div id="fulfill-list"></div>
   </div>
 
   <!-- 완료된 문서 -->
@@ -287,6 +294,7 @@
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       if (tab.dataset.panel === 'my') loadMyDocuments();
       if (tab.dataset.panel === 'approve') loadPendingApprovals();
+      if (tab.dataset.panel === 'fulfill') loadFulfillmentQueue();
       if (tab.dataset.panel === 'history') loadHistoryDocuments();
       if (tab.dataset.panel === 'scope') loadScopeDocuments();
     });
@@ -800,7 +808,7 @@
   const stepStatusLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
 
   // ---------- 문서종류 필터 공통 헬퍼 ----------
-  const filterState = { my: '', approve: '', history: '', scope: '' };
+  const filterState = { my: '', approve: '', fulfill: '', history: '', scope: '' };
   function buildTypeFilter(containerId, key, onChange) {
     const el = document.getElementById(containerId);
     const options = [{ code: '', name: '전체' }, ...Object.keys(DOC_DEFS).map((c) => ({ code: c, name: DOC_DEFS[c].name }))];
@@ -975,6 +983,51 @@
   }
 
   // ---------- 완료된 문서 ----------
+  // ---------- 지급/구매 대기 ----------
+  async function loadFulfillmentQueue() {
+    buildTypeFilter('fulfill-filter', 'fulfill', loadFulfillmentQueue);
+    const listEl = document.getElementById('fulfill-list');
+    listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
+    const qs = filterState.fulfill ? ('?doc_type_code=' + encodeURIComponent(filterState.fulfill)) : '';
+    const res = await fetch('/api/documents/fulfillment-queue' + qs, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) { listEl.innerHTML = '<div class="empty">' + (data.error || '조회 실패') + '</div>'; return; }
+    if (!data.documents || data.documents.length === 0) {
+      listEl.innerHTML = '<div class="empty">지급/구매 대기 중인 문서가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = data.documents.map((d) => {
+      const code = d.approval_doc_types ? d.approval_doc_types.code : 'expense';
+      const renderer = FORM_RENDERERS[code];
+      const formHtml = renderer ? renderer(d.content, false, d.steps) : '';
+      printStore['fulfill-' + d.id] = formHtml;
+      const drafterName = d.approval_employees ? d.approval_employees.name : '';
+      const canFulfill = employee.is_accounting_reviewer &&
+        ['pending_payment', 'pending_purchase'].includes(d.fulfillment_status);
+      return `
+        <div class="doc">
+          <div class="doc-top" onclick="toggleDetail('fulfill-detail-${d.id}')">
+            <div class="doc-title">${d.title}<span class="chev" id="chev-fulfill-detail-${d.id}">▾</span></div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('fulfill-${d.id}')">인쇄</button>
+              ${fulfillmentBadge(d)}
+            </div>
+          </div>
+          <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
+          <div id="fulfill-detail-${d.id}" class="doc-detail" style="display:none;">
+          ${formHtml}
+          <div id="att-fulfill-${d.id}" class="att-list"></div>
+          <div class="doc-steps">
+            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
+          </div>
+          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}', true)">${d.fulfillment_status === 'pending_payment' ? '✓ 지급완료 처리' : '✓ 구매완료 처리'}</button></div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+    data.documents.forEach((d) => loadAttachments(d.id, 'att-fulfill-' + d.id));
+  }
+
   async function loadHistoryDocuments() {
     buildTypeFilter('history-filter', 'history', loadHistoryDocuments);
     const listEl = document.getElementById('history-list');
@@ -1063,7 +1116,7 @@
     data.documents.forEach((d) => loadAttachments(d.id, 'att-scope-' + d.id));
   }
 
-  async function fulfillDoc(document_id) {
+  async function fulfillDoc(document_id, fromQueue) {
     if (!confirm('완료 처리하시겠습니까?')) return;
     const res = await fetch('/api/documents/fulfill', {
       method: 'POST',
@@ -1071,8 +1124,12 @@
       body: JSON.stringify({ document_id }),
     });
     const data = await res.json();
-    if (res.ok) loadScopeDocuments();
-    else alert(data.error || '처리 중 오류가 발생했습니다.');
+    if (res.ok) {
+      if (fromQueue) loadFulfillmentQueue();
+      else loadScopeDocuments();
+    } else {
+      alert(data.error || '처리 중 오류가 발생했습니다.');
+    }
   }
 
   (async function init() {
