@@ -869,6 +869,7 @@
           <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="my-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
+          <div id="att-my-${d.id}" class="att-list"></div>
           <div class="doc-steps">
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
           </div>
@@ -880,6 +881,7 @@
         </div>
       `;
     }).join('');
+    data.documents.forEach((d) => loadAttachments(d.id, 'att-my-' + d.id));
   }
 
   // ---------- 결재할 문서 ----------
@@ -914,7 +916,7 @@
           <div class="doc-meta">기안자: ${drafterName}</div>
           <div id="approve-detail-${s.id}" class="doc-detail" style="display:none;">
           ${formHtml}
-          <div id="att-${doc ? doc.id : ''}" class="att-list"></div>
+          <div id="att-approve-${doc ? doc.id : ''}" class="att-list"></div>
           <div style="margin-top:12px; display:flex; gap:8px;">
             <button class="approve" onclick="act('${s.id}', 'approve')">승인</button>
             <button class="reject" onclick="act('${s.id}', 'reject')">반려</button>
@@ -926,19 +928,31 @@
 
     data.pending.forEach((s) => {
       const doc = s.approval_documents;
-      if (doc) loadAttachments(doc.id);
+      if (doc) loadAttachments(doc.id, 'att-approve-' + doc.id);
     });
   }
 
-  async function loadAttachments(document_id) {
-    const el = document.getElementById('att-' + document_id);
+  async function loadAttachments(document_id, containerId) {
+    const el = document.getElementById(containerId || ('att-' + document_id));
     if (!el) return;
-    const res = await fetch('/api/attachments/list?document_id=' + document_id, { headers: authHeaders() });
-    const data = await res.json();
-    if (!res.ok || !data.attachments || data.attachments.length === 0) return;
-    el.innerHTML = data.attachments.map((a) =>
-      `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">${a.file_name}</a>`
-    ).join('');
+    try {
+      const res = await fetch('/api/attachments/list?document_id=' + document_id, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok || !data.attachments || data.attachments.length === 0) {
+        el.innerHTML = '';
+        return;
+      }
+      el.innerHTML = data.attachments.map((a) => {
+        if (a.file_type === 'image' && a.url) {
+          return `<a href="${a.url}" target="_blank" rel="noopener" style="display:block;">
+            <img src="${a.url}" alt="${a.file_name}" style="width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
+          </a>`;
+        }
+        return `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">📄 ${a.file_name}</a>`;
+      }).join('');
+    } catch (e) {
+      el.innerHTML = '';
+    }
   }
 
   async function act(step_id, action) {
@@ -987,6 +1001,7 @@
           <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="history-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
+          <div id="att-history-${d.id}" class="att-list"></div>
           <div class="doc-steps">
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
           </div>
@@ -994,6 +1009,7 @@
         </div>
       `;
     }).join('');
+    data.documents.forEach((d) => loadAttachments(d.id, 'att-history-' + d.id));
   }
 
   // ---------- 전체 조회 (팀장/개발이사/회계담당/경영지원팀장) ----------
@@ -1030,6 +1046,7 @@
           <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="scope-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
+          <div id="att-scope-${d.id}" class="att-list"></div>
           <div class="doc-steps">
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
           </div>
@@ -1038,6 +1055,7 @@
         </div>
       `;
     }).join('');
+    data.documents.forEach((d) => loadAttachments(d.id, 'att-scope-' + d.id));
   }
 
   async function fulfillDoc(document_id) {
