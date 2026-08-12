@@ -148,7 +148,10 @@
   async function loadEmployees() {
     const res = await fetch('/api/admin/employees', { headers: { Authorization: 'Bearer ' + token } });
     const data = await res.json();
-    if (!res.ok) return;
+    if (!res.ok) {
+      document.getElementById('emp-list').innerHTML = '<div class="empty">' + (data.error || '직원 목록을 불러오지 못했습니다.') + '</div>';
+      return;
+    }
     allEmployees = data.employees || [];
     renderEmployees(allEmployees);
   }
