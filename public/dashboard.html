@@ -28,7 +28,7 @@
   .who { font-size: 13px; color: #6b7a71; }
   .logout { font-size: 12px; color: #9aa79e; cursor: pointer; margin-left: 12px; text-decoration: underline; }
 
-  .wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
 
   .tabs { display: flex; gap: 4px; background: var(--green-soft); padding: 4px; border-radius: 10px; margin-bottom: 20px; }
   .tab { flex: 1; text-align: center; padding: 9px 0; border-radius: 7px; font-size: 13px; font-weight: 600; color: #4c6a58; cursor: pointer; }
@@ -64,7 +64,7 @@
   /* ---- 종이 양식 스타일 ---- */
   .paper-form {
     border: 2px solid #222; border-radius: 2px; overflow: hidden; background: #fff; font-size: 13px;
-    max-width: 800px; margin: 0 auto; box-shadow: 0 4px 18px rgba(27,38,33,.10);
+    max-width: 920px; margin: 0 auto; box-shadow: 0 4px 18px rgba(27,38,33,.10);
   }
   .paper-form table { width: 100%; border-collapse: collapse; }
   .paper-form td, .paper-form th { border: 1px solid #444; padding: 7px 9px; vertical-align: middle; }
@@ -207,7 +207,6 @@
 
   <!-- 내 문서 -->
   <div class="panel" id="panel-my">
-    <div id="leave-summary-card"></div>
     <div class="doctype-picker" id="my-filter"></div>
     <div id="my-list"></div>
   </div>
@@ -317,6 +316,8 @@
     expense: { name: '지출결의서', roles: ['작성자', '개발이사', '차장', '담당'] },
     purchase: { name: '구매요청서', roles: ['작성자', '개발이사', '대표이사', '담당'] },
   };
+  // 새 문서 작성 시 고를 수 있는 종류 (휴가신청서는 당분간 미사용으로 제외)
+  const CREATABLE_DOC_CODES = ['expense', 'purchase'];
 
   function approvalBoxHtml(code, realSteps) {
     if (realSteps && realSteps.length > 0) {
@@ -418,12 +419,15 @@
       return sum + (Number(it.qty) || 0) * (Number(it.unit_price) || 0);
     }, 0);
 
-    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:30px;"></th>' : ''}</tr>`;
+    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th${k === 'description' ? ' style="width:38%;"' : ''}>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:30px;"></th>' : ''}</tr>`;
 
     let rows = items.map((it, idx) => {
       const cells = cols.map(([k, l, type]) => {
         const val = it[k];
         if (!editable) return `<td class="${k === 'description' ? 'desc-cell' : ''}">${type === 'number' ? fmtNum(val) : (esc(val) || '-')}</td>`;
+        if (k === 'description') {
+          return `<td><textarea data-row="${idx}" data-col="${k}" rows="2" style="min-height:44px;">${esc(val)}</textarea></td>`;
+        }
         return `<td><input data-row="${idx}" data-col="${k}" type="${type}" value="${esc(val)}" /></td>`;
       }).join('');
       const amountCell = code === 'purchase'
@@ -508,7 +512,7 @@
   const FORM_RENDERERS = { vacation: renderVacationForm, expense: renderExpenseForm, purchase: renderPurchaseForm };
 
   // ---------- 새 문서 작성 상태 ----------
-  let currentDocCode = 'vacation';
+  let currentDocCode = 'expense';
   let formData = {};
   let selectedFiles = [];
   let departmentList = [];
@@ -534,14 +538,16 @@
   }
 
   function blankFormData() {
-    const base = currentDocCode === 'vacation' ? {} : { items: [] };
+    const base = currentDocCode === 'vacation' ? {} : { items: [{}] };
     if (employee.department_name) base.department = employee.department_name;
+    if (currentDocCode === 'purchase') base.requester = employee.name;
+    else base.name = employee.name;
     return base;
   }
 
   function buildDoctypePicker() {
     const picker = document.getElementById('doctype-picker');
-    picker.innerHTML = Object.keys(DOC_DEFS).map((code) =>
+    picker.innerHTML = CREATABLE_DOC_CODES.map((code) =>
       `<div class="doctype-btn ${code === currentDocCode ? 'active' : ''}" data-code="${code}">${DOC_DEFS[code].name}</div>`
     ).join('');
     picker.querySelectorAll('.doctype-btn').forEach((btn) => {
@@ -837,7 +843,6 @@
   }
 
   async function loadMyDocuments() {
-    loadLeaveSummary();
     buildTypeFilter('my-filter', 'my', loadMyDocuments);
     const listEl = document.getElementById('my-list');
     listEl.innerHTML = '<div class="empty">불러오는 중...</div>';
