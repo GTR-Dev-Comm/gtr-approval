@@ -187,3 +187,10 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`, `api/documents/my.js`, `api/documents/pending.js`, `api/documents/history.js`(신규)를 GitHub에 다시 업로드하세요.
+
+## 15단계 (완료) — 전화번호 자동 하이픈 + 관리자 최초설정 초기화
+- "최초 설정" 탭에서 전화번호 입력 시 숫자만 입력해도 자동으로 010-0000-0000 형태로 하이픈이 붙습니다. (그동안 "이미 사용중" 오류의 원인 중 하나가 하이픈 입력 방식 차이로 전화번호가 DB와 정확히 안 맞았을 가능성입니다 — 이제 항상 같은 형식으로 맞춰집니다)
+- `/admin.html`의 직원 목록에 **"최초설정 초기화"** 버튼이 추가되었습니다. 아이디/비밀번호를 잘못 설정했거나 꼬인 계정을 관리자가 초기 상태로 되돌려서, 본인이 전화번호로 "최초 설정"을 처음부터 다시 할 수 있게 해줍니다.
+
+### 적용 방법
+`public/index.html`, `public/admin.html`, `api/admin/reset-activation.js`(신규)를 GitHub에 다시 업로드하세요.

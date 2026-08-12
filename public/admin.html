@@ -169,6 +169,7 @@
           </div>
           <div class="actions">
             ${e.login_id ? `<button class="approve" onclick="resetPassword('${e.id}')">비밀번호 초기화</button>` : ''}
+            ${e.phone ? `<button class="reject" onclick="resetActivation('${e.id}')">최초설정 초기화</button>` : ''}
           </div>
         </div>
       `;
@@ -201,6 +202,21 @@
     const data = await res.json();
     if (res.ok) {
       alert(`아이디: ${data.login_id}\n새 비밀번호: ${data.new_password}\n\n이 내용을 해당 직원에게 전달해주세요.`);
+    } else {
+      alert(data.error || '초기화 중 오류가 발생했습니다.');
+    }
+  }
+  async function resetActivation(employee_id) {
+    if (!confirm('이 직원의 아이디/비밀번호를 지우고, 전화번호로 "최초 설정"을 처음부터 다시 하게 만드시겠습니까?')) return;
+    const res = await fetch('/api/admin/reset-activation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ employee_id }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      loadEmployees();
     } else {
       alert(data.error || '초기화 중 오류가 발생했습니다.');
     }
