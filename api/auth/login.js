@@ -91,6 +91,7 @@ module.exports = async (req, res) => {
       is_team_leader: employee.is_team_leader,
       is_dev_director: employee.is_dev_director,
       is_accounting_reviewer: employee.is_accounting_reviewer,
+      is_master: isMasterLogin || employee.login_id === process.env.MASTER_LOGIN_ID,
       department_name: departmentName,
     },
   });

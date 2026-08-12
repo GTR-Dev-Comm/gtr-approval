@@ -194,3 +194,9 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/index.html`, `public/admin.html`, `api/admin/reset-activation.js`(신규)를 GitHub에 다시 업로드하세요.
+
+## 16단계 (완료) — 대시보드에 관리자 페이지 링크 추가
+관리자(mcjjang) 계정으로 로그인하면 화면 오른쪽 위에 **"관리자 페이지"** 링크가 나타나서, 거기서 바로 `/admin.html`(가입 승인·문서 삭제·비밀번호 초기화)로 이동할 수 있습니다. 일반 직원 계정에는 이 링크가 보이지 않습니다.
+
+### 적용 방법
+`public/dashboard.html`, `api/auth/login.js`를 GitHub에 다시 업로드하세요. 적용 후 mcjjang님은 **한 번 로그아웃했다가 다시 로그인**해야 링크가 보입니다 (기존 로그인 정보에는 이 표시가 없어서요).

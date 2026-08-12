@@ -151,7 +151,7 @@
 <body>
 <header>
   <div class="brand"><div class="mark">GTR</div><div class="name">전자결의</div></div>
-  <div class="who"><span id="who-name"></span><span class="logout" id="logout-btn">로그아웃</span></div>
+  <div class="who"><span id="who-name"></span><a id="admin-link" href="/admin.html" style="display:none; font-size:12px; color:var(--green-deep); margin-left:12px; text-decoration:underline;">관리자 페이지</a><span class="logout" id="logout-btn">로그아웃</span></div>
 </header>
 
 <div class="wrap">
@@ -229,6 +229,9 @@
   if (!token) window.location.href = '/index.html';
   const employee = employeeRaw ? JSON.parse(employeeRaw) : {};
   document.getElementById('who-name').textContent = (employee.name || '') + '님';
+  if (employee.is_master) {
+    document.getElementById('admin-link').style.display = 'inline';
+  }
 
   document.getElementById('logout-btn').addEventListener('click', () => {
     localStorage.removeItem('gtr_approval_token');
