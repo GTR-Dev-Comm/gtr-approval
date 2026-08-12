@@ -268,3 +268,9 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`, `api/documents/fulfillment-queue.js`(신규)를 GitHub에 다시 업로드하세요.
+
+## 24단계 (완료) — 금액 입력 시 천단위 콤마 자동 표시
+지출결의서의 "금액", 구매요청서의 "단가" 입력칸에 숫자를 입력하면 타이핑하는 즉시 1,000 단위로 콤마가 붙습니다. 실제 저장되는 값은 숫자만 깨끗하게 들어가니 계산에는 문제없습니다.
+
+### 적용 방법
+`public/dashboard.html`을 GitHub에 다시 업로드하세요.

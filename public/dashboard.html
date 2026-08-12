@@ -436,6 +436,9 @@
         if (k === 'description') {
           return `<td><textarea data-row="${idx}" data-col="${k}" rows="2" style="min-height:44px;">${esc(val)}</textarea></td>`;
         }
+        if (k === 'amount' || k === 'unit_price') {
+          return `<td><input class="money-input" data-row="${idx}" data-col="${k}" type="text" inputmode="numeric" value="${val ? fmtNum(val) : ''}" /></td>`;
+        }
         return `<td><input data-row="${idx}" data-col="${k}" type="${type}" value="${esc(val)}" /></td>`;
       }).join('');
       const amountCell = code === 'purchase'
@@ -592,10 +595,18 @@
     container.querySelectorAll('[data-row]').forEach((el) => {
       const handler = () => {
         const idx = Number(el.dataset.row);
-        formData.items[idx][el.dataset.col] = el.value;
+        const raw = el.classList.contains('money-input') ? el.value.replace(/[^0-9]/g, '') : el.value;
+        formData.items[idx][el.dataset.col] = raw;
         renderCurrentForm(); // 합계 재계산을 위해 다시 그림
       };
       el.addEventListener('change', handler);
+    });
+
+    container.querySelectorAll('.money-input').forEach((el) => {
+      el.addEventListener('input', () => {
+        const digits = el.value.replace(/[^0-9]/g, '');
+        el.value = digits ? Number(digits).toLocaleString('ko-KR') : '';
+      });
     });
 
     container.querySelectorAll('[data-del-row]').forEach((el) => {
