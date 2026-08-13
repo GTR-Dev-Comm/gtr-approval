@@ -35,7 +35,9 @@ module.exports = async (req, res) => {
   let scopeDeptIds = null; // null = 제한 없음(전체 또는 본인 문서만 별도 병합)
   let hasBroadAccess = false;
 
-  if (me.is_accounting_reviewer) {
+  if (payload.is_master) {
+    hasBroadAccess = true;
+  } else if (me.is_accounting_reviewer) {
     hasBroadAccess = true;
   } else if (me.is_team_leader) {
     const { data: myDept } = await supabase.from('approval_departments').select('name').eq('id', me.department_id).maybeSingle();

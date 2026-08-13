@@ -301,7 +301,7 @@
   });
 
   // 팀장/개발이사/회계담당만 "전체 조회" 탭 노출
-  if (employee.is_team_leader || employee.is_dev_director || employee.is_accounting_reviewer) {
+  if (employee.is_master || employee.is_team_leader || employee.is_dev_director || employee.is_accounting_reviewer) {
     const scopeTab = document.createElement('div');
     scopeTab.className = 'tab';
     scopeTab.dataset.panel = 'scope';

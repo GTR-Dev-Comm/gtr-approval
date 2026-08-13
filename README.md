@@ -274,3 +274,10 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`을 GitHub에 다시 업로드하세요.
+
+## 25단계 (완료) — 완료된 문서 기준 강화 + 마스터 전체 조회
+- **완료된 문서** 탭: 이제 "반려된 문서" 또는 "승인+후속처리(지급/구매)까지 다 끝난 문서"만 나옵니다. 승인은 됐지만 아직 지급/구매 대기 중인 문서는 여기 안 나오고 "지급/구매 대기" 탭에만 보입니다.
+- **마스터(mcjjang) 계정**: 이제 "전체 조회" 탭이 보이고, 그 안에서 부서/역할 제한 없이 **회사 전체 모든 문서**를 볼 수 있습니다. "완료된 문서", "지급/구매 대기" 탭도 마스터는 전체가 다 보입니다.
+
+### 적용 방법
+`public/dashboard.html`, `api/documents/history.js`, `api/documents/scope.js`, `api/documents/fulfillment-queue.js`를 GitHub에 다시 업로드하세요.

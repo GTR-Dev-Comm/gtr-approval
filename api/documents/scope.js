@@ -16,7 +16,9 @@ module.exports = async (req, res) => {
   let hasAccess = false;
   let deptFilterIds = null; // null = 전체 조회, 배열이면 해당 부서로 제한
 
-  if (me.is_accounting_reviewer) {
+  if (payload.is_master) {
+    hasAccess = true;
+  } else if (me.is_accounting_reviewer) {
     hasAccess = true;
   } else if (me.is_team_leader) {
     hasAccess = true;
