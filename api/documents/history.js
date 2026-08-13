@@ -1,10 +1,11 @@
 const { getSupabase, requireAuth } = require('../_lib');
 
-// "완료"의 기준: 반려된 문서 / 승인됐고 후속처리(지급·구매)가 필요없는 문서 / 승인됐고 후속처리까지 끝난 문서
+const MGMT_SUPPORT_DEPT_NAME = '경영지원팀';
+
 function isTrulyDone(d) {
   if (d.status === 'rejected') return true;
   if (d.status !== 'approved') return false;
-  if (!d.fulfillment_status) return true; // 후속처리 대상이 아닌 문서종류
+  if (!d.fulfillment_status) return true;
   return d.fulfillment_status === 'paid' || d.fulfillment_status === 'purchased';
 }
 
@@ -21,19 +22,44 @@ module.exports = async (req, res) => {
     docTypeId = dt ? dt.id : '__none__';
   }
 
+  const { data: me } = await supabase
+    .from('approval_employees')
+    .select('*')
+    .eq('id', payload.sub)
+    .maybeSingle();
+  if (!me) return res.status(401).json({ error: '사용자 정보를 확인할 수 없습니다.' });
+
+  // 조회 범위 판단 (마스터/회계담당/경영지원팀장 = 전체, 개발이사 = 개발라인, 팀장 = 본인팀, 그 외 = 본인 관련만)
+  let hasBroadAccess = payload.is_master || !!me.is_accounting_reviewer;
+  let scopeDeptIds = null;
+
+  if (!hasBroadAccess && me.is_team_leader) {
+    const { data: myDept } = await supabase.from('approval_departments').select('name').eq('id', me.department_id).maybeSingle();
+    if (myDept && myDept.name === MGMT_SUPPORT_DEPT_NAME) {
+      hasBroadAccess = true;
+    } else {
+      scopeDeptIds = me.department_id ? [me.department_id] : [];
+    }
+  } else if (!hasBroadAccess && me.is_dev_director) {
+    const { data: aDepts } = await supabase.from('approval_departments').select('id').eq('approval_group', 'A');
+    scopeDeptIds = (aDepts || []).map((d) => d.id);
+  }
+
   let documents = [];
 
-  if (payload.is_master) {
-    // 마스터는 전체 문서를 다 봅니다.
+  if (hasBroadAccess || scopeDeptIds) {
     let query = supabase
       .from('approval_documents')
-      .select('id, title, content, status, created_at, updated_at, doc_type_id, drafter_id, fulfillment_status, fulfilled_at, approval_doc_types(name, code), approval_employees(name)')
+      .select('id, title, content, status, created_at, updated_at, doc_type_id, drafter_id, fulfillment_status, fulfilled_at, approval_doc_types(name, code), approval_employees(name, department_id)')
       .in('status', ['approved', 'rejected']);
     if (docTypeId) query = query.eq('doc_type_id', docTypeId);
     const { data } = await query;
-    documents = (data || []).filter(isTrulyDone);
+    documents = (data || []).filter((d) => {
+      if (hasBroadAccess) return true;
+      return d.approval_employees && scopeDeptIds.includes(d.approval_employees.department_id);
+    });
   } else {
-    // 1) 내가 작성한 문서 중 완료된 것
+    // 일반 직원: 본인이 작성했거나 결재(승인/반려)했던 문서만
     let myQuery = supabase
       .from('approval_documents')
       .select('id, title, content, status, created_at, updated_at, doc_type_id, drafter_id, fulfillment_status, fulfilled_at, approval_doc_types(name, code), approval_employees(name)')
@@ -42,7 +68,6 @@ module.exports = async (req, res) => {
     if (docTypeId) myQuery = myQuery.eq('doc_type_id', docTypeId);
     const { data: myDocs } = await myQuery;
 
-    // 2) 내가 결재(승인/반려) 처리한 문서
     const { data: actedSteps } = await supabase
       .from('approval_steps')
       .select('document_id, status, acted_at, approval_documents(id, title, content, created_at, updated_at, doc_type_id, drafter_id, fulfillment_status, fulfilled_at, approval_doc_types(name, code), approval_employees(name))')
@@ -58,9 +83,10 @@ module.exports = async (req, res) => {
       if (!merged[d.id]) merged[d.id] = d;
     });
 
-    documents = Object.values(merged).filter(isTrulyDone);
+    documents = Object.values(merged);
   }
 
+  documents = documents.filter(isTrulyDone);
   documents.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
 
   const docIds = documents.map((d) => d.id);

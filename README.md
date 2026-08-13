@@ -281,3 +281,13 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`, `api/documents/history.js`, `api/documents/scope.js`, `api/documents/fulfillment-queue.js`를 GitHub에 다시 업로드하세요.
+
+## 26단계 (완료) — 완료된 문서에도 회계담당/경영지원팀장 전체 조회 권한 반영
+"완료된 문서" 탭이 마스터만 전체를 보고 회계담당(채유림)·경영지원팀장(이은혜)·개발이사(도승희)·각 팀장은 본인이 직접 작성/결재한 것만 보이던 문제를 고쳤습니다. 이제 "전체 조회"·"지급/구매 대기"와 동일한 기준으로:
+- 마스터·회계담당·경영지원팀장: 전체
+- 개발이사: 개발라인 7개 팀
+- 각 팀장: 본인 팀
+- 그 외 직원: 본인이 작성했거나 결재했던 것만
+
+### 적용 방법
+`api/documents/history.js`를 GitHub에 다시 업로드하세요.
