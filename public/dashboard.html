@@ -55,6 +55,7 @@
   }
   button.reject { background: var(--red-soft); color: var(--red); border: none; }
   button.approve { background: var(--green-deep); color: #fff; border: none; }
+  button.act-btn { padding: 14px 26px; font-size: 15px; font-weight: 800; border-radius: 10px; }
   button.row-add { margin-top: 8px; }
   button.row-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; }
 
@@ -409,7 +410,7 @@
           </tr>
           <tr><td colspan="6" class="footer-text">위와 같은 내용으로 휴가를 신청합니다.</td></tr>
           <tr><td colspan="6" class="footer-date">${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
-          <tr><td colspan="6" class="signer-row">신청인 : ${esc(employee.name)} (인)</td></tr>
+          <tr><td colspan="6" class="signer-row">신청인 : ${editable ? esc(employee.name) : esc(d.name || employee.name)} (인)</td></tr>
         </table>
       </div>
     `;
@@ -483,7 +484,7 @@
         <table>
           <tr><td colspan="6" class="footer-text">위 금액을 청구하오니 결재바랍니다.</td></tr>
           <tr><td colspan="6" class="footer-date">${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
-          <tr><td colspan="6" class="signer-row">영수인 : ${esc(employee.name)} (인)</td></tr>
+          <tr><td colspan="6" class="signer-row">영수인 : ${editable ? esc(employee.name) : esc(d.name || employee.name)} (인)</td></tr>
         </table>
       </div>
       ${editable ? '<button type="button" class="ghost row-add" id="add-row-btn">+ 행 추가</button>' : ''}
@@ -513,7 +514,7 @@
         <table>
           <tr><td colspan="6" class="footer-text">상기 내용에 대한 구매를 요청합니다.</td></tr>
           <tr><td colspan="6" class="footer-date">${new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
-          <tr><td colspan="6" class="signer-row">신청인 : ${esc(employee.name)} (인)</td></tr>
+          <tr><td colspan="6" class="signer-row">신청인 : ${editable ? esc(employee.name) : esc(d.requester || employee.name)} (인)</td></tr>
         </table>
       </div>
       ${editable ? '<button type="button" class="ghost row-add" id="add-row-btn">+ 행 추가</button>' : ''}
@@ -942,8 +943,8 @@
           ${formHtml}
           <div id="att-approve-${doc ? doc.id : ''}" class="att-list"></div>
           <div style="margin-top:12px; display:flex; gap:8px;">
-            <button class="approve" onclick="act('${s.id}', 'approve')">승인</button>
-            <button class="reject" onclick="act('${s.id}', 'reject')">반려</button>
+            <button class="approve act-btn" onclick="event.stopPropagation(); act('${s.id}', 'approve', this)">승인</button>
+            <button class="reject act-btn" onclick="event.stopPropagation(); act('${s.id}', 'reject', this)">반려</button>
           </div>
           </div>
         </div>
@@ -979,18 +980,38 @@
     }
   }
 
-  async function act(step_id, action) {
+  async function act(step_id, action, btnEl) {
     let comment = null;
-    if (action === 'reject') {
-      comment = prompt('반려 사유를 입력해주세요 (선택)');
+    if (action === 'approve') {
+      if (!confirm('정말 승인하시겠습니까?')) return;
+    } else if (action === 'reject') {
+      comment = prompt('반려 사유를 입력해주세요 (취소를 누르면 반려되지 않습니다)');
+      if (comment === null) return; // 취소 시 아무 처리도 하지 않음
     }
-    const res = await fetch('/api/documents/act', {
-      method: 'POST',
-      headers: authHeaders(true),
-      body: JSON.stringify({ step_id, action, comment }),
-    });
-    if (res.ok) loadPendingApprovals();
-    else alert('처리 중 오류가 발생했습니다.');
+
+    let originalText = '';
+    if (btnEl) {
+      originalText = btnEl.textContent;
+      btnEl.disabled = true;
+      btnEl.textContent = '처리 중...';
+    }
+
+    try {
+      const res = await fetch('/api/documents/act', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ step_id, action, comment }),
+      });
+      if (res.ok) loadPendingApprovals();
+      else alert('처리 중 오류가 발생했습니다.');
+    } catch (e) {
+      alert('네트워크 오류가 발생했습니다.');
+    } finally {
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.textContent = originalText;
+      }
+    }
   }
 
   // ---------- 완료된 문서 ----------
