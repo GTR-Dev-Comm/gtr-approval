@@ -446,7 +446,7 @@
   }
 
   // ---------- 지출결의서 / 구매요청서 (항목 테이블형) ----------
-  function itemsTableHtml(code, data, editable) {
+  function itemsTableHtml(code, data, editable, verifyStepId) {
     const items = (data && data.items) || [];
     const cols = code === 'expense'
       ? [['date', '날짜', 'date'], ['vendor', '업체명', 'text'], ['amount', '금액', 'number'], ['description', '지출내용', 'text']]
@@ -457,7 +457,8 @@
       return sum + (Number(it.qty) || 0) * (Number(it.unit_price) || 0);
     }, 0);
 
-    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th${k === 'description' ? ' style="width:38%;"' : ''}>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:30px;"></th>' : ''}</tr>`;
+    const extraCols = (code === 'purchase' ? 1 : 0) + (editable ? 1 : 0) + (verifyStepId ? 1 : 0);
+    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th${k === 'description' ? ' style="width:34%;"' : ''}>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:30px;"></th>' : ''}${verifyStepId ? '<th style="width:44px;">확인</th>' : ''}</tr>`;
 
     let rows = items.map((it, idx) => {
       const cells = cols.map(([k, l, type]) => {
@@ -476,22 +477,25 @@
         : '';
       const noCell = code === 'purchase' ? `<td>${idx + 1}</td>` : '';
       const delCell = editable ? `<td><button type="button" class="row-del" data-del-row="${idx}">×</button></td>` : '';
-      return `<tr>${noCell}${cells}${amountCell}${delCell}</tr>`;
+      const verifyCell = verifyStepId
+        ? `<td style="text-align:center;"><input type="checkbox" class="verify-item-cb" data-step="${verifyStepId}" onclick="event.stopPropagation(); updateVerifyState('${verifyStepId}')" /></td>`
+        : '';
+      return `<tr>${noCell}${cells}${amountCell}${delCell}${verifyCell}</tr>`;
     }).join('');
 
     if (items.length === 0) {
-      rows = `<tr><td colspan="${cols.length + (code === 'purchase' ? 2 : 0) + (editable ? 1 : 0)}" style="text-align:center; color:#9aa79e;">${editable ? '아래 "+ 행 추가" 버튼으로 항목을 넣어주세요' : '항목 없음'}</td></tr>`;
+      rows = `<tr><td colspan="${cols.length + extraCols}" style="text-align:center; color:#9aa79e;">${editable ? '아래 "+ 행 추가" 버튼으로 항목을 넣어주세요' : '항목 없음'}</td></tr>`;
     }
 
     const sumLabel = code === 'expense' ? '계' : '합계';
-    const sumRow = `<tr class="sum-row"><td colspan="${(code === 'purchase' ? 1 : 0) + 1}">${sumLabel}</td><td colspan="${cols.length - 1 + (code === 'purchase' ? 1 : 0) + (editable ? 1 : 0)}" style="text-align:right;">${fmtNum(total)} 원</td></tr>`;
+    const sumRow = `<tr class="sum-row"><td colspan="${(code === 'purchase' ? 1 : 0) + 1}">${sumLabel}</td><td colspan="${cols.length - 1 + extraCols}" style="text-align:right;">${fmtNum(total)} 원</td></tr>`;
 
     return { html: `<table class="items-table">${head}${rows}${sumRow}</table>`, total };
   }
 
-  function renderExpenseForm(data, editable, steps) {
+  function renderExpenseForm(data, editable, steps, verifyStepId) {
     const d = data || { items: [] };
-    const { html: tableHtml, total } = itemsTableHtml('expense', d, editable);
+    const { html: tableHtml, total } = itemsTableHtml('expense', d, editable, verifyStepId);
     const inp = (key) => editable
       ? `<input data-field="${key}" value="${esc(d[key])}" />`
       : `<span>${esc(d[key]) || '-'}</span>`;
@@ -1019,9 +1023,9 @@
       const drafterName = doc && doc.approval_employees ? doc.approval_employees.name : '';
       const code = doc && doc.approval_doc_types ? doc.approval_doc_types.code : 'vacation';
       const renderer = FORM_RENDERERS[code];
-      const formHtml = doc && renderer ? renderer(doc.content, false, s.all_steps) : '';
-      if (doc) printStore['approve-' + doc.id] = formHtml;
       const needsVerify = employee.is_accounting_reviewer && code === 'expense';
+      const formHtml = doc && renderer ? renderer(doc.content, false, s.all_steps, needsVerify ? s.id : null) : '';
+      if (doc) printStore['approve-' + doc.id] = formHtml;
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('approve-detail-${s.id}')">
@@ -1034,11 +1038,7 @@
           <div id="approve-detail-${s.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-approve-${doc ? doc.id : ''}" class="att-list"></div>
-          ${needsVerify ? `
-          <label style="display:flex; align-items:center; gap:8px; margin-top:12px; padding:10px 12px; background:var(--amber-soft); border-radius:8px; font-size:13px; color:#6b4c1f; cursor:pointer;">
-            <input type="checkbox" id="verify-${s.id}" onclick="event.stopPropagation(); toggleVerify('${s.id}')" style="width:auto;" />
-            금액과 첨부된 영수증을 대조해서 확인했습니다
-          </label>` : ''}
+          ${needsVerify ? `<div style="margin-top:8px; font-size:12px; color:#9aa79e;">표 오른쪽 "확인" 칸에서 항목별로 첨부 영수증과 대조해서 체크해주세요. 전부 체크해야 승인 버튼이 눌립니다.</div>` : ''}
           <div style="margin-top:12px; display:flex; gap:8px;">
             <button class="approve act-btn" id="approve-btn-${s.id}" ${needsVerify ? 'disabled' : ''} onclick="event.stopPropagation(); act('${s.id}', 'approve', this)">승인</button>
             <button class="reject act-btn" onclick="event.stopPropagation(); act('${s.id}', 'reject', this)">반려</button>
@@ -1078,10 +1078,13 @@
     }
   }
 
-  function toggleVerify(step_id) {
-    const cb = document.getElementById('verify-' + step_id);
+  function updateVerifyState(step_id) {
+    const boxes = document.querySelectorAll('.verify-item-cb[data-step="' + step_id + '"]');
     const btn = document.getElementById('approve-btn-' + step_id);
-    if (btn) btn.disabled = !(cb && cb.checked);
+    if (!btn) return;
+    if (boxes.length === 0) { btn.disabled = false; return; }
+    const allChecked = Array.from(boxes).every((b) => b.checked);
+    btn.disabled = !allChecked;
   }
 
   async function act(step_id, action, btnEl) {
