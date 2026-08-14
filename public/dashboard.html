@@ -551,6 +551,33 @@
 
   const FORM_RENDERERS = { vacation: renderVacationForm, expense: renderExpenseForm, purchase: renderPurchaseForm };
 
+  function fmtDateShort(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '';
+    return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
+  }
+
+  function docSummaryLine(code, name, dateStr, content) {
+    const typeName = DOC_DEFS[code] ? DOC_DEFS[code].name : code;
+    const parts = [typeName, name || '', fmtDateShort(dateStr)];
+    if (code === 'expense' || code === 'purchase') {
+      const items = (content && content.items) || [];
+      let total = 0;
+      let desc = '';
+      if (code === 'expense') {
+        total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+        desc = items[0] ? (items[0].description || '') : '';
+      } else {
+        total = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unit_price) || 0), 0);
+        desc = items[0] ? (items[0].item_name || '') : '';
+      }
+      if (items.length > 1) desc = desc ? `${desc} 외 ${items.length - 1}건` : `${items.length}건`;
+      parts.push(fmtNum(total) + '원');
+      if (desc) parts.push(desc);
+    }
+    return parts.filter(Boolean).join(' · ');
+  }
+
   // ---------- 새 문서 작성 상태 ----------
   let currentDocCode = 'expense';
   let formData = {};
@@ -947,14 +974,13 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('my-detail-${d.id}')">
-            <div class="doc-title">${d.title}<span class="chev" id="chev-my-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryLine(code, employee.name, d.created_at, d.content)}<span class="chev" id="chev-my-detail-${d.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('my-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
               ${fulfillmentBadge(d)}
             </div>
           </div>
-          <div class="doc-meta">${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="my-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-my-${d.id}" class="att-list"></div>
@@ -997,13 +1023,12 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('approve-detail-${s.id}')">
-            <div class="doc-title">${doc ? doc.title : ''}<span class="chev" id="chev-approve-detail-${s.id}">▾</span></div>
+            <div class="doc-title">${doc ? docSummaryLine(code, drafterName, doc.created_at, doc.content) : ''}<span class="chev" id="chev-approve-detail-${s.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
               ${doc ? `<button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('approve-${doc.id}')">인쇄</button>` : ''}
               <div class="badge pending">${s.step_name}</div>
             </div>
           </div>
-          <div class="doc-meta">기안자: ${drafterName}</div>
           <div id="approve-detail-${s.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-approve-${doc ? doc.id : ''}" class="att-list"></div>
@@ -1104,13 +1129,12 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('fulfill-detail-${d.id}')">
-            <div class="doc-title">${d.title}<span class="chev" id="chev-fulfill-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryLine(code, drafterName, d.created_at, d.content)}<span class="chev" id="chev-fulfill-detail-${d.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('fulfill-${d.id}')">인쇄</button>
               ${fulfillmentBadge(d)}
             </div>
           </div>
-          <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="fulfill-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-fulfill-${d.id}" class="att-list"></div>
@@ -1146,14 +1170,13 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('history-detail-${d.id}')">
-            <div class="doc-title">${d.title}<span class="chev" id="chev-history-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryLine(code, drafterName, d.created_at, d.content)}<span class="chev" id="chev-history-detail-${d.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('history-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
               ${fulfillmentBadge(d)}
             </div>
           </div>
-          <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="history-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-history-${d.id}" class="att-list"></div>
@@ -1191,14 +1214,13 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('scope-detail-${d.id}')">
-            <div class="doc-title">${d.title}<span class="chev" id="chev-scope-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryLine(code, drafterName, d.created_at, d.content)}<span class="chev" id="chev-scope-detail-${d.id}">▾</span></div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('scope-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
               ${fulfillmentBadge(d)}
             </div>
           </div>
-          <div class="doc-meta">작성자: ${drafterName} · ${new Date(d.created_at).toLocaleString('ko-KR')}</div>
           <div id="scope-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-scope-${d.id}" class="att-list"></div>
