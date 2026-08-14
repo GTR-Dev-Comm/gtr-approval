@@ -3,7 +3,6 @@ const { getSupabase, requireAuth } = require('../_lib');
 const MGMT_SUPPORT_DEPT_NAME = '경영지원팀';
 
 function isTrulyDone(d) {
-  if (d.status === 'rejected') return true;
   if (d.status !== 'approved') return false;
   if (!d.fulfillment_status) return true;
   return d.fulfillment_status === 'paid' || d.fulfillment_status === 'purchased';

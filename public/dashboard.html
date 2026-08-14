@@ -268,6 +268,34 @@
     const v = Number(n) || 0;
     return v.toLocaleString('ko-KR');
   }
+  function numberToKoreanWon(num) {
+    const n = Math.floor(Number(num) || 0);
+    if (n <= 0) return '영';
+    const digits = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+    const smallUnits = ['', '십', '백', '천'];
+    const bigUnits = ['', '만', '억', '조'];
+    function convertGroup(g) {
+      let result = '';
+      let unitIdx = 0;
+      while (g > 0) {
+        const d = g % 10;
+        if (d > 0) result = digits[d] + smallUnits[unitIdx] + result;
+        g = Math.floor(g / 10);
+        unitIdx++;
+      }
+      return result;
+    }
+    let result = '';
+    let groupIdx = 0;
+    let rest = n;
+    while (rest > 0) {
+      const group = rest % 10000;
+      if (group > 0) result = convertGroup(group) + bigUnits[groupIdx] + result;
+      rest = Math.floor(rest / 10000);
+      groupIdx++;
+    }
+    return result || '영';
+  }
   const printStore = {};
   function printDoc(key) {
     const html = printStore[key];
@@ -477,7 +505,7 @@
           </tr>
           <tr>
             <td class="label">지출금액</td>
-            <td colspan="5">일금 ${fmtNum(total)} 원정 (₩ ${fmtNum(total)})</td>
+            <td colspan="5">일금 ${numberToKoreanWon(total)}원정 (₩ ${fmtNum(total)})</td>
           </tr>
         </table>
         ${tableHtml}
@@ -804,6 +832,35 @@
     }
   }
 
+  async function editRejectedDoc(document_id) {
+    if (!confirm('반려된 문서를 수정하시겠습니까? 수정 후 다시 상신해야 합니다.')) return;
+    const res = await fetch('/api/documents/reopen', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({ document_id }),
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || '처리 중 오류가 발생했습니다.');
+
+    const info = draftStore[document_id];
+    if (!info) return alert('문서 정보를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+
+    currentDocCode = info.doc_type_code;
+    formData = JSON.parse(JSON.stringify(info.content || {}));
+    draftDocumentId = document_id;
+    filesUploaded = false;
+    selectedFiles = [];
+
+    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+    document.querySelector('.tab[data-panel="new"]').classList.add('active');
+    document.getElementById('panel-new').classList.add('active');
+
+    buildDoctypePicker();
+    renderCurrentForm();
+    showMsg('new-msg', '반려된 문서를 불러왔습니다. 내용을 수정한 뒤 다시 상신해주세요.', true);
+  }
+
   const statusLabel = { draft: '임시저장', pending: '진행중', approved: '승인완료', rejected: '반려' };
   function fulfillmentBadge(d) {
     if (!d.fulfillment_status) return '';
@@ -881,6 +938,12 @@
       printStore['my-' + d.id] = formHtml;
       draftStore[d.id] = { doc_type_code: code, title: d.title, content: d.content };
       const canDelete = d.status === 'draft' || d.status === 'rejected';
+      const rejectedStep = (d.steps || []).find((s) => s.status === 'rejected');
+      const rejectionHtml = (d.status === 'rejected' && rejectedStep)
+        ? `<div style="margin-top:10px; padding:10px 12px; background:var(--red-soft); border-radius:8px; font-size:12px; color:var(--red);">
+             <b>반려 사유 (${rejectedStep.step_name})</b><br/>${esc(rejectedStep.comment) || '입력된 사유가 없습니다.'}
+           </div>`
+        : '';
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('my-detail-${d.id}')">
@@ -895,11 +958,13 @@
           <div id="my-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-my-${d.id}" class="att-list"></div>
+          ${rejectionHtml}
           <div class="doc-steps">
             ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
           </div>
           <div style="margin-top:12px; display:flex; gap:8px;">
             ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
+            ${d.status === 'rejected' ? `<button class="approve" onclick="editRejectedDoc('${d.id}')">수정하기</button>` : ''}
             ${canDelete ? `<button class="reject" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
           </div>
           </div>
