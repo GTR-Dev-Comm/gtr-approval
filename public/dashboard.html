@@ -56,6 +56,7 @@
   button.reject { background: var(--red-soft); color: var(--red); border: none; }
   button.approve { background: var(--green-deep); color: #fff; border: none; }
   button.act-btn { padding: 14px 26px; font-size: 15px; font-weight: 800; border-radius: 10px; }
+  button.act-btn:disabled { opacity: .4; cursor: not-allowed; }
   button.row-add { margin-top: 8px; }
   button.row-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; }
 
@@ -1020,6 +1021,7 @@
       const renderer = FORM_RENDERERS[code];
       const formHtml = doc && renderer ? renderer(doc.content, false, s.all_steps) : '';
       if (doc) printStore['approve-' + doc.id] = formHtml;
+      const needsVerify = employee.is_accounting_reviewer && code === 'expense';
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('approve-detail-${s.id}')">
@@ -1032,14 +1034,20 @@
           <div id="approve-detail-${s.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-approve-${doc ? doc.id : ''}" class="att-list"></div>
+          ${needsVerify ? `
+          <label style="display:flex; align-items:center; gap:8px; margin-top:12px; padding:10px 12px; background:var(--amber-soft); border-radius:8px; font-size:13px; color:#6b4c1f; cursor:pointer;">
+            <input type="checkbox" id="verify-${s.id}" onclick="event.stopPropagation(); toggleVerify('${s.id}')" style="width:auto;" />
+            금액과 첨부된 영수증을 대조해서 확인했습니다
+          </label>` : ''}
           <div style="margin-top:12px; display:flex; gap:8px;">
-            <button class="approve act-btn" onclick="event.stopPropagation(); act('${s.id}', 'approve', this)">승인</button>
+            <button class="approve act-btn" id="approve-btn-${s.id}" ${needsVerify ? 'disabled' : ''} onclick="event.stopPropagation(); act('${s.id}', 'approve', this)">승인</button>
             <button class="reject act-btn" onclick="event.stopPropagation(); act('${s.id}', 'reject', this)">반려</button>
           </div>
           </div>
         </div>
       `;
     }).join('');
+
 
     data.pending.forEach((s) => {
       const doc = s.approval_documents;
@@ -1068,6 +1076,12 @@
     } catch (e) {
       el.innerHTML = '';
     }
+  }
+
+  function toggleVerify(step_id) {
+    const cb = document.getElementById('verify-' + step_id);
+    const btn = document.getElementById('approve-btn-' + step_id);
+    if (btn) btn.disabled = !(cb && cb.checked);
   }
 
   async function act(step_id, action, btnEl) {
