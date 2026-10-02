@@ -337,3 +337,11 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/admin.html`, `api/admin/add-employee.js`(신규), `api/admin/departments.js`(신규)를 GitHub에 업로드하세요.
+
+## 33단계 (완료) — 등록된 직원 정보 수정
+`/admin.html`의 각 직원 행에 **"정보 수정"** 버튼이 추가되었습니다. 누르면 화면 위쪽 "직원 추가" 폼이 그 직원 정보로 채워지면서 "○○○님 정보 수정"으로 바뀌고, 이름·전화번호·소속 부서·역할(팀장/개발이사/회계담당)을 고쳐서 "저장"하면 반영됩니다. "취소"를 누르면 원래 "직원 추가" 상태로 돌아갑니다.
+
+**버그 수정**: 직원 목록 조회 API가 부서 ID를 안 내려주고 있어서, 그대로 뒀다면 수정 저장할 때마다 부서가 비는(초기화되는) 문제가 생길 뻔했습니다 — 같이 고쳤습니다.
+
+### 적용 방법
+`public/admin.html`, `api/admin/employees.js`, `api/admin/update-employee.js`(신규)를 GitHub에 업로드하세요.

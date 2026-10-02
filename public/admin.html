@@ -44,9 +44,10 @@
 <body>
 <div class="wrap">
   <a href="/dashboard.html" style="display:inline-block; font-size:13px; color:var(--green-deep); text-decoration:underline; margin-bottom:16px;">← 대시보드로 돌아가기</a>
-  <h1>직원 추가</h1>
-  <p class="sub">이름과 전화번호로 직원을 미리 등록해두면, 본인이 "최초 설정"에서 그 전화번호로 아이디/비밀번호를 만들어 바로 사용할 수 있습니다.</p>
-  <div style="background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:28px;">
+  <h1 id="add-emp-title">직원 추가</h1>
+  <p class="sub" id="add-emp-sub">이름과 전화번호로 직원을 미리 등록해두면, 본인이 "최초 설정"에서 그 전화번호로 아이디/비밀번호를 만들어 바로 사용할 수 있습니다.</p>
+  <div id="add-emp-form" style="background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:28px;">
+    <input type="hidden" id="editing-emp-id" value="" />
     <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">이름</label>
     <input id="add-emp-name" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:12px; box-sizing:border-box;" />
     <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">전화번호</label>
@@ -58,7 +59,8 @@
       <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="add-emp-dev" style="width:auto;" /> 개발이사</label>
       <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="add-emp-acct" style="width:auto;" /> 회계담당</label>
     </div>
-    <button class="approve" onclick="addEmployee()">직원 추가</button>
+    <button class="approve" id="add-emp-submit-btn" onclick="submitEmployeeForm()">직원 추가</button>
+    <button class="reject" id="add-emp-cancel-btn" onclick="cancelEditEmployee()" style="display:none;">취소</button>
     <div class="msg" id="add-emp-msg" style="margin-top:12px; font-size:13px; padding:10px 12px; border-radius:8px; display:none;"></div>
   </div>
 
@@ -178,7 +180,39 @@
     });
   }
 
-  async function addEmployee() {
+  function startEditEmployee(e) {
+    document.getElementById('editing-emp-id').value = e.id;
+    document.getElementById('add-emp-name').value = e.name || '';
+    document.getElementById('add-emp-phone').value = e.phone || '';
+    document.getElementById('add-emp-dept').value = e.department_id || (e.approval_departments ? '' : '');
+    document.getElementById('add-emp-leader').checked = !!e.is_team_leader;
+    document.getElementById('add-emp-dev').checked = !!e.is_dev_director;
+    document.getElementById('add-emp-acct').checked = !!e.is_accounting_reviewer;
+    document.getElementById('add-emp-title').textContent = `${e.name}님 정보 수정`;
+    document.getElementById('add-emp-sub').textContent = '이름, 전화번호, 부서, 역할을 수정할 수 있습니다.';
+    document.getElementById('add-emp-submit-btn').textContent = '저장';
+    document.getElementById('add-emp-cancel-btn').style.display = 'inline-block';
+    document.getElementById('add-emp-msg').className = 'msg';
+    document.getElementById('add-emp-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function cancelEditEmployee() {
+    document.getElementById('editing-emp-id').value = '';
+    document.getElementById('add-emp-name').value = '';
+    document.getElementById('add-emp-phone').value = '';
+    document.getElementById('add-emp-dept').value = '';
+    document.getElementById('add-emp-leader').checked = false;
+    document.getElementById('add-emp-dev').checked = false;
+    document.getElementById('add-emp-acct').checked = false;
+    document.getElementById('add-emp-title').textContent = '직원 추가';
+    document.getElementById('add-emp-sub').textContent = '이름과 전화번호로 직원을 미리 등록해두면, 본인이 "최초 설정"에서 그 전화번호로 아이디/비밀번호를 만들어 바로 사용할 수 있습니다.';
+    document.getElementById('add-emp-submit-btn').textContent = '직원 추가';
+    document.getElementById('add-emp-cancel-btn').style.display = 'none';
+    document.getElementById('add-emp-msg').className = 'msg';
+  }
+
+  async function submitEmployeeForm() {
+    const editingId = document.getElementById('editing-emp-id').value;
     const name = document.getElementById('add-emp-name').value.trim();
     const phone = document.getElementById('add-emp-phone').value.trim();
     const department_id = document.getElementById('add-emp-dept').value || null;
@@ -187,30 +221,39 @@
     const is_accounting_reviewer = document.getElementById('add-emp-acct').checked;
     const msgEl = document.getElementById('add-emp-msg');
 
-    if (!name || !phone) {
-      msgEl.textContent = '이름과 전화번호를 입력해주세요.';
+    if (!name || (!editingId && !phone)) {
+      msgEl.textContent = editingId ? '이름을 입력해주세요.' : '이름과 전화번호를 입력해주세요.';
       msgEl.className = 'msg show error';
       return;
     }
 
-    const res = await fetch('/api/admin/add-employee', {
+    const url = editingId ? '/api/admin/update-employee' : '/api/admin/add-employee';
+    const body = editingId
+      ? { employee_id: editingId, name, phone, department_id, is_team_leader, is_dev_director, is_accounting_reviewer }
+      : { name, phone, department_id, is_team_leader, is_dev_director, is_accounting_reviewer };
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ name, phone, department_id, is_team_leader, is_dev_director, is_accounting_reviewer }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (res.ok) {
       msgEl.textContent = data.message;
       msgEl.className = 'msg show ok';
-      document.getElementById('add-emp-name').value = '';
-      document.getElementById('add-emp-phone').value = '';
-      document.getElementById('add-emp-dept').value = '';
-      document.getElementById('add-emp-leader').checked = false;
-      document.getElementById('add-emp-dev').checked = false;
-      document.getElementById('add-emp-acct').checked = false;
+      if (editingId) {
+        cancelEditEmployee();
+      } else {
+        document.getElementById('add-emp-name').value = '';
+        document.getElementById('add-emp-phone').value = '';
+        document.getElementById('add-emp-dept').value = '';
+        document.getElementById('add-emp-leader').checked = false;
+        document.getElementById('add-emp-dev').checked = false;
+        document.getElementById('add-emp-acct').checked = false;
+      }
       loadEmployees();
     } else {
-      msgEl.textContent = data.error || '등록 중 오류가 발생했습니다.';
+      msgEl.textContent = data.error || '처리 중 오류가 발생했습니다.';
       msgEl.className = 'msg show error';
     }
   }
@@ -257,6 +300,7 @@
             <div class="meta">${dept || '-'} · ${e.phone || '전화번호 없음'} · 연차 ${e.annual_leave_days != null ? e.annual_leave_days + '일' : '미설정'}</div>
           </div>
           <div class="actions">
+            <button class="approve" onclick='startEditEmployee(${JSON.stringify(e)})'>정보 수정</button>
             ${e.login_id ? `<button class="approve" onclick="resetPassword('${e.id}')">비밀번호 초기화</button>` : ''}
             ${e.phone ? `<button class="reject" onclick="resetActivation('${e.id}')">최초설정 초기화</button>` : ''}
             <button class="approve" onclick="setLeaveDays('${e.id}', ${e.annual_leave_days != null ? e.annual_leave_days : 15})">연차 설정</button>
