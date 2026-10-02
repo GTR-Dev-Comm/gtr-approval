@@ -36,11 +36,32 @@
   .badge.pending { background: #fbf1de; color: #c98a2c; }
   .badge.approved { background: var(--green-soft); color: var(--green-deep); }
   .badge.rejected { background: var(--red-soft); color: var(--red); }
+  .msg.show { display: block !important; }
+  .msg.error { background: var(--red-soft); color: var(--red); }
+  .msg.ok { background: var(--green-soft); color: var(--green-deep); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <a href="/dashboard.html" style="display:inline-block; font-size:13px; color:var(--green-deep); text-decoration:underline; margin-bottom:16px;">← 대시보드로 돌아가기</a>
+  <h1>직원 추가</h1>
+  <p class="sub">이름과 전화번호로 직원을 미리 등록해두면, 본인이 "최초 설정"에서 그 전화번호로 아이디/비밀번호를 만들어 바로 사용할 수 있습니다.</p>
+  <div style="background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:28px;">
+    <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">이름</label>
+    <input id="add-emp-name" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:12px; box-sizing:border-box;" />
+    <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">전화번호</label>
+    <input id="add-emp-phone" placeholder="010-0000-0000" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:12px; box-sizing:border-box;" />
+    <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">소속 부서</label>
+    <select id="add-emp-dept" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:12px; box-sizing:border-box;"><option value="">부서 선택 안 함</option></select>
+    <div style="display:flex; gap:16px; margin-bottom:14px; font-size:13px;">
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="add-emp-leader" style="width:auto;" /> 팀장</label>
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="add-emp-dev" style="width:auto;" /> 개발이사</label>
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="add-emp-acct" style="width:auto;" /> 회계담당</label>
+    </div>
+    <button class="approve" onclick="addEmployee()">직원 추가</button>
+    <div class="msg" id="add-emp-msg" style="margin-top:12px; font-size:13px; padding:10px 12px; border-radius:8px; display:none;"></div>
+  </div>
+
   <h1>가입 승인 관리</h1>
   <p class="sub">가입은 이제 자동으로 승인됩니다. 이 목록은 과거 방식으로 남아있던 대기 건이 있을 때만 보입니다.</p>
   <div id="list"></div>
@@ -142,7 +163,71 @@
     else alert(data.error || '삭제 중 오류가 발생했습니다.');
   }
 
-  if (token) { load(); loadDocs(); loadEmployees(); }
+  if (token) { load(); loadDocs(); loadEmployees(); loadAddEmpDepartments(); }
+
+  async function loadAddEmpDepartments() {
+    const res = await fetch('/api/admin/departments', { headers: { Authorization: 'Bearer ' + token } });
+    const data = await res.json();
+    if (!res.ok) return;
+    const sel = document.getElementById('add-emp-dept');
+    (data.departments || []).forEach((d) => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function addEmployee() {
+    const name = document.getElementById('add-emp-name').value.trim();
+    const phone = document.getElementById('add-emp-phone').value.trim();
+    const department_id = document.getElementById('add-emp-dept').value || null;
+    const is_team_leader = document.getElementById('add-emp-leader').checked;
+    const is_dev_director = document.getElementById('add-emp-dev').checked;
+    const is_accounting_reviewer = document.getElementById('add-emp-acct').checked;
+    const msgEl = document.getElementById('add-emp-msg');
+
+    if (!name || !phone) {
+      msgEl.textContent = '이름과 전화번호를 입력해주세요.';
+      msgEl.className = 'msg show error';
+      return;
+    }
+
+    const res = await fetch('/api/admin/add-employee', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ name, phone, department_id, is_team_leader, is_dev_director, is_accounting_reviewer }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = data.message;
+      msgEl.className = 'msg show ok';
+      document.getElementById('add-emp-name').value = '';
+      document.getElementById('add-emp-phone').value = '';
+      document.getElementById('add-emp-dept').value = '';
+      document.getElementById('add-emp-leader').checked = false;
+      document.getElementById('add-emp-dev').checked = false;
+      document.getElementById('add-emp-acct').checked = false;
+      loadEmployees();
+    } else {
+      msgEl.textContent = data.error || '등록 중 오류가 발생했습니다.';
+      msgEl.className = 'msg show error';
+    }
+  }
+
+  const addEmpPhoneInput = document.getElementById('add-emp-phone');
+  if (addEmpPhoneInput) {
+    addEmpPhoneInput.addEventListener('input', (e) => {
+      let digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+      let formatted = digits;
+      if (digits.length > 3 && digits.length <= 7) {
+        formatted = digits.slice(0, 3) + '-' + digits.slice(3);
+      } else if (digits.length > 7) {
+        formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+      }
+      e.target.value = formatted;
+    });
+  }
 
   let allEmployees = [];
   async function loadEmployees() {

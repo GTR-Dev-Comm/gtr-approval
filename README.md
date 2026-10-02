@@ -331,3 +331,9 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`을 GitHub에 다시 업로드하세요.
+
+## 32단계 (완료) — 관리자가 직원 직접 추가
+`/admin.html` 맨 위에 **"직원 추가"** 폼이 생겼습니다. 이름과 전화번호(자동 하이픈 포맷)를 입력하고, 필요하면 소속 부서와 역할(팀장/개발이사/회계담당)을 체크한 뒤 등록하면 바로 명단에 추가됩니다. 추가된 직원은 본인이 로그인 화면의 "최초 설정"에서 그 전화번호로 아이디/비밀번호를 만들면 바로 사용할 수 있습니다 (SQL 마이그레이션 없이 관리자가 화면에서 바로 추가 가능).
+
+### 적용 방법
+`public/admin.html`, `api/admin/add-employee.js`(신규), `api/admin/departments.js`(신규)를 GitHub에 업로드하세요.
