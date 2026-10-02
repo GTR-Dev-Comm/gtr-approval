@@ -13,18 +13,18 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--paper); color: var(--ink); padding: 32px 20px; }
-  .wrap { max-width: 640px; margin: 0 auto; }
+  .wrap { max-width: 900px; margin: 0 auto; }
   h1 { font-size: 19px; margin: 0 0 4px; }
   .sub { font-size: 13px; color: #7a8a80; margin: 0 0 24px; }
   .row {
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 10px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; margin-bottom: 10px;
+    display: flex; flex-direction: column; gap: 10px;
   }
   .info b { font-size: 14px; }
   .info .meta { font-size: 12px; color: #7a8a80; margin-top: 3px; }
-  .actions { display: flex; gap: 8px; flex-shrink: 0; }
-  button { border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { border: none; border-radius: 7px; padding: 7px 11px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .approve { background: var(--green-deep); color: #fff; }
   .reject { background: var(--red-soft); color: var(--red); }
   .empty { text-align: center; color: #9aa79e; padding: 60px 0; font-size: 14px; }
@@ -295,9 +295,10 @@
       const idText = e.login_id ? e.login_id : '(아직 미설정)';
       return `
         <div class="row" data-id="${e.id}" style="${e.is_active ? '' : 'opacity:.5;'}">
-          <div class="info">
-            <b>${e.name}</b> <span style="color:#9aa79e;">(${idText})</span> ${e.is_active ? '' : '<span class="badge rejected">비활성</span>'}
-            <div class="meta">${dept || '-'} · ${e.phone || '전화번호 없음'} · 연차 ${e.annual_leave_days != null ? e.annual_leave_days + '일' : '미설정'}</div>
+          <div class="info" style="display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; column-gap:10px;">
+            <span><b>${e.name}</b> <span style="color:#9aa79e;">(${idText})</span></span>
+            ${e.is_active ? '' : '<span class="badge rejected">비활성</span>'}
+            <span class="meta" style="margin:0;">${dept || '-'} · ${e.phone || '전화번호 없음'} · 연차 ${e.annual_leave_days != null ? e.annual_leave_days + '일' : '미설정'}</span>
           </div>
           <div class="actions">
             <button class="approve" onclick='startEditEmployee(${JSON.stringify(e)})'>정보 수정</button>
