@@ -353,3 +353,7 @@ Supabase SQL Editor에서 `migrations/007_full_roster.sql` 실행 (004, 006번�
 
 ### 적용 방법
 `public/dashboard.html`, `api/documents/reopen.js`를 GitHub에 다시 업로드하세요.
+
+## 35단계 (완료) — 서식 아래 결재 단계 칩 제거
+내 문서/완료된 문서/지급·구매 대기/전체 조회에서 서식 아래에 나오던 "담당팀장 승인: 결재중 …" 단계 표시줄을 없앴습니다. 결재 현황은 서식 오른쪽 위 결재란(개발이사/회계담당/경영지원팀장)에서 확인합니다.
+`public/dashboard.html`만 다시 업로드하세요.

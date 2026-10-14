@@ -1028,9 +1028,6 @@
           ${formHtml}
           <div id="att-my-${d.id}" class="att-list"></div>
           ${rejectionHtml}
-          <div class="doc-steps">
-            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
-          </div>
           <div style="margin-top:12px; display:flex; gap:8px;">
             ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
             ${['draft', 'pending', 'rejected'].includes(d.status) ? `<button class="approve" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
@@ -1193,9 +1190,6 @@
           <div id="fulfill-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-fulfill-${d.id}" class="att-list"></div>
-          <div class="doc-steps">
-            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
-          </div>
           ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}', true)">${d.fulfillment_status === 'pending_payment' ? '✓ 지급완료 처리' : '✓ 구매완료 처리'}</button></div>` : ''}
           </div>
         </div>
@@ -1235,9 +1229,6 @@
           <div id="history-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-history-${d.id}" class="att-list"></div>
-          <div class="doc-steps">
-            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
-          </div>
           </div>
         </div>
       `;
@@ -1279,9 +1270,6 @@
           <div id="scope-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-scope-${d.id}" class="att-list"></div>
-          <div class="doc-steps">
-            ${(d.steps || []).map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}
-          </div>
           ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
           </div>
         </div>
