@@ -57,6 +57,7 @@
   button.approve { background: var(--green-deep); color: #fff; border: none; }
   button.act-btn { padding: 14px 26px; font-size: 15px; font-weight: 800; border-radius: 10px; }
   button.act-btn:disabled { opacity: .4; cursor: not-allowed; }
+  button.fulfill-btn { padding: 11px 22px; font-size: 14px; font-weight: 700; border-radius: 9px; }
   button.row-add { margin-top: 8px; }
   button.row-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; }
 
@@ -388,7 +389,7 @@
     const hasSteps = realSteps && realSteps.length > 0;
     const cells = APPROVAL_ROLES.map((role) => {
       if (!hasSteps) return '<td class="stamp">결재예정</td>';
-      const step = realSteps.find((s) => s.step_name && s.step_name.startsWith(role));
+      const step = displaySteps(realSteps).find((s) => s.step_name && s.step_name.startsWith(role));
       if (!step) return '<td class="stamp">-</td>';
       const name = step.approval_employees ? step.approval_employees.name : '';
       return `<td class="stamp">${esc(name)} <span style="font-size:10px;">${statusMark[step.status] || step.status}</span></td>`;
@@ -965,9 +966,28 @@
   }
   const stepStatusLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
 
+  // 화면에 보여줄 단계 계산: 담당팀장 단계는 숨기고,
+  // 보이는 단계 중 아직 결재 전인 첫 번째 단계를 "결재중"으로, 그 뒤는 "대기"로 표시합니다.
+  // (반려된 문서는 그대로 표시)
+  function displaySteps(steps) {
+    const all = steps || [];
+    const hasRejected = all.some((s) => s.status === 'rejected');
+    let promoted = false;
+    return all
+      .filter((s) => !(s.step_name || '').startsWith('담당팀장'))
+      .map((s) => {
+        let status = s.status;
+        if (!hasRejected && !promoted && (status === 'pending' || status === 'waiting')) {
+          status = 'waiting';
+          promoted = true;
+        }
+        return Object.assign({}, s, { status });
+      });
+  }
+
   // 서식 아래 단계 상태 표시 (담당팀장 단계는 제외, 개발이사/회계담당/경영지원팀장만 표시)
   function stepChipsHtml(steps) {
-    const shown = (steps || []).filter((s) => !(s.step_name || '').startsWith('담당팀장'));
+    const shown = displaySteps(steps);
     if (shown.length === 0) return '';
     return `<div class="doc-steps">${shown.map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}</div>`;
   }
@@ -1218,7 +1238,7 @@
           ${formHtml}
           <div id="att-fulfill-${d.id}" class="att-list"></div>
           ${stepChipsHtml(d.steps)}
-          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}', true)">${d.fulfillment_status === 'pending_payment' ? '✓ 지급완료 처리' : '✓ 구매완료 처리'}</button></div>` : ''}
+          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve fulfill-btn" onclick="event.stopPropagation(); fulfillDoc('${d.id}', true)">${d.fulfillment_status === 'pending_payment' ? '✓ 지급완료 처리' : '✓ 구매완료 처리'}</button></div>` : ''}
           </div>
         </div>
       `;
@@ -1300,7 +1320,7 @@
           ${formHtml}
           <div id="att-scope-${d.id}" class="att-list"></div>
           ${stepChipsHtml(d.steps)}
-          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
+          ${canFulfill ? `<div style="margin-top:12px;"><button class="approve fulfill-btn" onclick="event.stopPropagation(); fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
           </div>
         </div>
       `;
