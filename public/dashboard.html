@@ -492,10 +492,10 @@
         return `<td><input data-row="${idx}" data-col="${k}" ${typeAttrs(type)} value="${esc(val)}" /></td>`;
       }).join('');
       const amountCell = code === 'purchase'
-        ? `<td>${fmtNum((Number(it.qty) || 0) * (Number(it.unit_price) || 0))}</td>`
+        ? `<td class="js-row-amount" data-idx="${idx}">${fmtNum((Number(it.qty) || 0) * (Number(it.unit_price) || 0))}</td>`
         : '';
       const noCell = code === 'purchase' ? `<td>${idx + 1}</td>` : '';
-      const delCell = editable ? `<td><button type="button" class="row-del" data-del-row="${idx}">×</button></td>` : '';
+      const delCell = editable ? `<td><button type="button" class="row-del" tabindex="-1" data-del-row="${idx}">×</button></td>` : '';
       const verifyCell = verifyStepId
         ? `<td style="text-align:center;"><input type="checkbox" class="verify-item-cb" data-step="${verifyStepId}" onclick="event.stopPropagation(); updateVerifyState('${verifyStepId}')" /></td>`
         : '';
@@ -507,7 +507,7 @@
     }
 
     const sumLabel = code === 'expense' ? '계' : '합계';
-    const sumRow = `<tr class="sum-row"><td colspan="${(code === 'purchase' ? 1 : 0) + 1}">${sumLabel}</td><td colspan="${cols.length - 1 + extraCols}" style="text-align:right;">${fmtNum(total)} 원</td></tr>`;
+    const sumRow = `<tr class="sum-row"><td colspan="${(code === 'purchase' ? 1 : 0) + 1}">${sumLabel}</td><td colspan="${cols.length - 1 + extraCols}" style="text-align:right;" class="js-sum">${fmtNum(total)} 원</td></tr>`;
 
     return { html: `<table class="items-table">${head}${rows}${sumRow}</table>`, total };
   }
@@ -529,7 +529,7 @@
           </tr>
           <tr>
             <td class="label">지출금액</td>
-            <td colspan="5">일금 ${numberToKoreanWon(total)}원정 (₩ ${fmtNum(total)})</td>
+            <td colspan="5" class="js-total-words">일금 ${numberToKoreanWon(total)}원정 (₩ ${fmtNum(total)})</td>
           </tr>
         </table>
         ${tableHtml}
@@ -663,6 +663,22 @@
     attachFormListeners();
   }
 
+  function updateTotals() {
+    const items = formData.items || [];
+    const total = items.reduce((sum, it) => {
+      if (currentDocCode === 'expense') return sum + (Number(it.amount) || 0);
+      return sum + (Number(it.qty) || 0) * (Number(it.unit_price) || 0);
+    }, 0);
+    document.querySelectorAll('#form-render .js-sum').forEach((el) => { el.textContent = fmtNum(total) + ' 원'; });
+    document.querySelectorAll('#form-render .js-total-words').forEach((el) => {
+      el.textContent = `일금 ${numberToKoreanWon(total)}원정 (₩ ${fmtNum(total)})`;
+    });
+    document.querySelectorAll('#form-render .js-row-amount').forEach((el) => {
+      const it = items[Number(el.dataset.idx)] || {};
+      el.textContent = fmtNum((Number(it.qty) || 0) * (Number(it.unit_price) || 0));
+    });
+  }
+
   function attachFormListeners() {
     const container = document.getElementById('form-render');
 
@@ -681,8 +697,9 @@
         const idx = Number(el.dataset.row);
         const raw = el.classList.contains('money-input') ? el.value.replace(/[^0-9]/g, '') : el.value;
         formData.items[idx][el.dataset.col] = raw;
-        renderCurrentForm(); // 합계 재계산을 위해 다시 그림
+        updateTotals(); // 폼을 다시 그리지 않고 합계만 갱신 (Tab 이동이 끊기지 않게)
       };
+      el.addEventListener('input', handler);
       el.addEventListener('change', handler);
     });
 
@@ -705,6 +722,8 @@
       addBtn.addEventListener('click', () => {
         formData.items.push({});
         renderCurrentForm();
+        const first = document.querySelector('#form-render [data-row="' + (formData.items.length - 1) + '"]');
+        if (first) first.focus();
       });
     }
   }
