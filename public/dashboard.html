@@ -384,7 +384,7 @@
   // 담당팀장 단계와 상세 진행상황은 아래쪽 단계 칩에서 확인합니다.
   const APPROVAL_ROLES = ['개발이사', '회계담당', '경영지원팀장'];
 
-  function approvalBoxHtml(code, realSteps) {
+  function approvalBoxHtml(code, realSteps, drafterName) {
     const statusMark = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
     const hasSteps = realSteps && realSteps.length > 0;
     const cells = APPROVAL_ROLES.map((role) => {
@@ -394,22 +394,23 @@
       const name = step.approval_employees ? step.approval_employees.name : '';
       return `<td class="stamp">${esc(name)} <span style="font-size:10px;">${statusMark[step.status] || step.status}</span></td>`;
     }).join('');
+    const drafterCell = `<td class="stamp" style="color:var(--ink);">${esc(drafterName || '')}</td>`;
     return `
       <div style="overflow-x:auto;">
         <table class="approval-table" style="width:100%;">
-          <tr>${APPROVAL_ROLES.map((r) => `<td class="role">${r}</td>`).join('')}</tr>
-          <tr>${cells}</tr>
+          <tr>${['작성자'].concat(APPROVAL_ROLES).map((r) => `<td class="role">${r}</td>`).join('')}</tr>
+          <tr>${drafterCell}${cells}</tr>
         </table>
       </div>
     `;
   }
 
-  function titleRow(code, realSteps) {
+  function titleRow(code, realSteps, drafterName) {
     return `
       <table>
         <tr class="title-row">
-          <td style="width:40%;" class="title-cell">${DOC_DEFS[code].name}</td>
-          <td style="width:60%; padding:8px;">${approvalBoxHtml(code, realSteps)}</td>
+          <td style="width:34%;" class="title-cell">${DOC_DEFS[code].name}</td>
+          <td style="width:66%; padding:8px;">${approvalBoxHtml(code, realSteps, drafterName)}</td>
         </tr>
       </table>
     `;
@@ -429,7 +430,7 @@
     };
     return `
       <div class="paper-form">
-        ${titleRow('vacation', steps)}
+        ${titleRow('vacation', steps, editable ? employee.name : (d.name || employee.name))}
         <table>
           <tr>
             <td class="label">성명</td><td>${editable ? esc(employee.name) : esc(d.name || employee.name)}</td>
@@ -521,7 +522,7 @@
       : `<span>${esc(d[key]) || '-'}</span>`;
     return `
       <div class="paper-form">
-        ${titleRow('expense', steps)}
+        ${titleRow('expense', steps, editable ? employee.name : (d.name || employee.name))}
         <table>
           <tr>
             <td class="label">부서명</td><td>${deptSelectHtml(d.department, editable)}</td>
@@ -552,7 +553,7 @@
       : `<span>${esc(d[key]) || '-'}</span>`;
     return `
       <div class="paper-form">
-        ${titleRow('purchase', steps)}
+        ${titleRow('purchase', steps, editable ? employee.name : (d.requester || employee.name))}
         <table>
           <tr>
             <td class="label">신청일자</td><td>${inp('request_date', 'date')}</td>
@@ -913,11 +914,9 @@
   }
 
   async function editMyDocument(document_id, status) {
-    const confirmMsg = status === 'pending'
-      ? '결재 진행 중인 문서를 회수해서 수정하시겠습니까?\n수정 후 다시 상신해야 하며, 결재선은 처음부터 다시 만들어집니다.'
-      : status === 'rejected'
-        ? '반려된 문서를 수정하시겠습니까? 수정 후 다시 상신해야 합니다.'
-        : '이 문서를 수정하시겠습니까?';
+    const confirmMsg = status === 'rejected'
+      ? '반려된 문서를 수정하시겠습니까? 수정 후 다시 상신해야 합니다.'
+      : '이 문서를 수정하시겠습니까?';
     if (!confirm(confirmMsg)) return;
 
     if (status !== 'draft') {
@@ -1077,7 +1076,7 @@
           ${stepChipsHtml(d.steps)}
           <div style="margin-top:12px; display:flex; gap:8px;">
             ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
-            ${['draft', 'pending', 'rejected'].includes(d.status) ? `<button class="approve" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
+            ${['draft', 'rejected'].includes(d.status) ? `<button class="approve" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
             ${canDelete ? `<button class="reject" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
           </div>
           </div>
