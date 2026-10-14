@@ -78,7 +78,7 @@
   .paper-form .title-row td { border: none; padding: 0; }
   .paper-form .title-cell { font-size: 24px; font-weight: 800; text-align: center; padding: 22px 10px; letter-spacing: 4px; }
   .paper-form .approval-table { border-collapse: collapse; }
-  .paper-form .approval-table td { text-align: center; font-size: 11px; padding: 4px 6px; white-space: nowrap; }
+  .paper-form .approval-table td { text-align: center; font-size: 11px; padding: 4px 9px; white-space: nowrap; }
   .paper-form .approval-table td.role { background: #f2f2f2; font-weight: 700; height: 18px; }
   .paper-form .approval-table td.stamp { height: 40px; min-width: 56px; color: #9aa79e; }
   .paper-form input, .paper-form textarea, .paper-form select {
@@ -397,7 +397,7 @@
     const drafterCell = `<td class="stamp" style="color:var(--ink);">${esc(drafterName || '')}</td>`;
     return `
       <div style="overflow-x:auto;">
-        <table class="approval-table" style="width:100%;">
+        <table class="approval-table" style="width:auto;">
           <tr>${['작성자'].concat(APPROVAL_ROLES).map((r) => `<td class="role">${r}</td>`).join('')}</tr>
           <tr>${drafterCell}${cells}</tr>
         </table>
@@ -409,8 +409,8 @@
     return `
       <table>
         <tr class="title-row">
-          <td style="width:34%;" class="title-cell">${DOC_DEFS[code].name}</td>
-          <td style="width:66%; padding:8px;">${approvalBoxHtml(code, realSteps, drafterName)}</td>
+          <td class="title-cell">${DOC_DEFS[code].name}</td>
+          <td style="width:1%; padding:8px 10px; white-space:nowrap;">${approvalBoxHtml(code, realSteps, drafterName)}</td>
         </tr>
       </table>
     `;
@@ -1075,9 +1075,9 @@
           ${rejectionHtml}
           ${stepChipsHtml(d.steps)}
           <div style="margin-top:12px; display:flex; gap:8px;">
-            ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
-            ${['draft', 'rejected'].includes(d.status) ? `<button class="approve" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
-            ${canDelete ? `<button class="reject" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
+            ${d.status === 'draft' ? `<button class="approve fulfill-btn" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
+            ${['draft', 'rejected'].includes(d.status) ? `<button class="approve fulfill-btn" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
+            ${canDelete ? `<button class="reject fulfill-btn" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
           </div>
           </div>
         </div>
