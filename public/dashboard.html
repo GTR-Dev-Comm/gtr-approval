@@ -965,6 +965,13 @@
   }
   const stepStatusLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
 
+  // 서식 아래 단계 상태 표시 (담당팀장 단계는 제외, 개발이사/회계담당/경영지원팀장만 표시)
+  function stepChipsHtml(steps) {
+    const shown = (steps || []).filter((s) => !(s.step_name || '').startsWith('담당팀장'));
+    if (shown.length === 0) return '';
+    return `<div class="doc-steps">${shown.map((s) => `<span class="step-chip ${s.status}">${s.step_name}: ${stepStatusLabel[s.status] || s.status}</span>`).join('')}</div>`;
+  }
+
   // ---------- 문서종류 필터 공통 헬퍼 ----------
   const filterState = { my: '', approve: '', fulfill: '', history: '', scope: '' };
   function buildTypeFilter(containerId, key, onChange) {
@@ -1047,6 +1054,7 @@
           ${formHtml}
           <div id="att-my-${d.id}" class="att-list"></div>
           ${rejectionHtml}
+          ${stepChipsHtml(d.steps)}
           <div style="margin-top:12px; display:flex; gap:8px;">
             ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
             ${['draft', 'pending', 'rejected'].includes(d.status) ? `<button class="approve" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
@@ -1209,6 +1217,7 @@
           <div id="fulfill-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-fulfill-${d.id}" class="att-list"></div>
+          ${stepChipsHtml(d.steps)}
           ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}', true)">${d.fulfillment_status === 'pending_payment' ? '✓ 지급완료 처리' : '✓ 구매완료 처리'}</button></div>` : ''}
           </div>
         </div>
@@ -1248,6 +1257,7 @@
           <div id="history-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-history-${d.id}" class="att-list"></div>
+          ${stepChipsHtml(d.steps)}
           </div>
         </div>
       `;
@@ -1289,6 +1299,7 @@
           <div id="scope-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-scope-${d.id}" class="att-list"></div>
+          ${stepChipsHtml(d.steps)}
           ${canFulfill ? `<div style="margin-top:12px;"><button class="approve" onclick="event.stopPropagation(); fulfillDoc('${d.id}')">${d.fulfillment_status === 'pending_payment' ? '지급완료 처리' : '구매완료 처리'}</button></div>` : ''}
           </div>
         </div>
