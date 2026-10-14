@@ -77,7 +77,7 @@
   .paper-form .title-row td { border: none; padding: 0; }
   .paper-form .title-cell { font-size: 24px; font-weight: 800; text-align: center; padding: 22px 10px; letter-spacing: 4px; }
   .paper-form .approval-table { border-collapse: collapse; }
-  .paper-form .approval-table td { text-align: center; font-size: 11px; padding: 4px 8px; }
+  .paper-form .approval-table td { text-align: center; font-size: 11px; padding: 4px 6px; white-space: nowrap; }
   .paper-form .approval-table td.role { background: #f2f2f2; font-weight: 700; height: 18px; }
   .paper-form .approval-table td.stamp { height: 40px; min-width: 56px; color: #9aa79e; }
   .paper-form input, .paper-form textarea, .paper-form select {
@@ -268,6 +268,25 @@
   function esc(v) {
     return (v === undefined || v === null) ? '' : String(v).replace(/"/g, '&quot;');
   }
+  // 날짜 입력: 숫자만 쳐도 YYYY-MM-DD 로 자동 정리 (연 4자리, 월/일 2자리를 입력해야 다음으로 진행)
+  function formatDateDigits(v) {
+    const d = String(v || '').replace(/\D/g, '').slice(0, 8);
+    if (d.length <= 4) return d;
+    if (d.length <= 6) return d.slice(0, 4) + '-' + d.slice(4);
+    return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6);
+  }
+  function isValidDateStr(s) {
+    if (!s) return true; // 비어있는 건 허용
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return false;
+    const y = +m[1], mo = +m[2], da = +m[3];
+    const dt = new Date(y, mo - 1, da);
+    return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === da;
+  }
+  function typeAttrs(type) {
+    if (type === 'date') return 'type="text" inputmode="numeric" maxlength="10" placeholder="YYYY-MM-DD" class="date-input"';
+    return `type="${type || 'text'}"`;
+  }
   function fmtNum(n) {
     const v = Number(n) || 0;
     return v.toLocaleString('ko-KR');
@@ -360,30 +379,27 @@
   // 새 문서 작성 시 고를 수 있는 종류 (휴가신청서는 당분간 미사용으로 제외)
   const CREATABLE_DOC_CODES = ['expense', 'purchase'];
 
+  // 결재란은 모든 문서에서 같은 3칸(개발이사 / 회계담당 / 경영지원팀장)으로 표시합니다.
+  // 담당팀장 단계와 상세 진행상황은 아래쪽 단계 칩에서 확인합니다.
+  const APPROVAL_ROLES = ['개발이사', '회계담당', '경영지원팀장'];
+
   function approvalBoxHtml(code, realSteps) {
-    if (realSteps && realSteps.length > 0) {
-      const statusMark = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
-      return `
-        <table class="approval-table" style="width:100%;">
-          <tr>${realSteps.map((s) => `<td class="role">${s.step_name.replace(' 승인', '')}</td>`).join('')}</tr>
-          <tr>
-            ${realSteps.map((s) => {
-              const name = s.approval_employees ? s.approval_employees.name : '';
-              return `<td class="stamp">${esc(name)}<br/><span style="font-size:10px;">${statusMark[s.status] || s.status}</span></td>`;
-            }).join('')}
-          </tr>
-        </table>
-      `;
-    }
-    const roles = DOC_DEFS[code].roles;
+    const statusMark = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
+    const hasSteps = realSteps && realSteps.length > 0;
+    const cells = APPROVAL_ROLES.map((role) => {
+      if (!hasSteps) return '<td class="stamp">결재예정</td>';
+      const step = realSteps.find((s) => s.step_name && s.step_name.startsWith(role));
+      if (!step) return '<td class="stamp">-</td>';
+      const name = step.approval_employees ? step.approval_employees.name : '';
+      return `<td class="stamp">${esc(name)} <span style="font-size:10px;">${statusMark[step.status] || step.status}</span></td>`;
+    }).join('');
     return `
-      <table class="approval-table" style="width:100%;">
-        <tr>${roles.map((r) => `<td class="role">${r}</td>`).join('')}</tr>
-        <tr>
-          <td class="stamp">${esc(employee.name)}</td>
-          ${roles.slice(1).map(() => `<td class="stamp">결재예정</td>`).join('')}
-        </tr>
-      </table>
+      <div style="overflow-x:auto;">
+        <table class="approval-table" style="width:100%;">
+          <tr>${APPROVAL_ROLES.map((r) => `<td class="role">${r}</td>`).join('')}</tr>
+          <tr>${cells}</tr>
+        </table>
+      </div>
     `;
   }
 
@@ -391,8 +407,8 @@
     return `
       <table>
         <tr class="title-row">
-          <td style="width:70%;" class="title-cell">${DOC_DEFS[code].name}</td>
-          <td style="width:30%; padding:8px;">${approvalBoxHtml(code, realSteps)}</td>
+          <td style="width:40%;" class="title-cell">${DOC_DEFS[code].name}</td>
+          <td style="width:60%; padding:8px;">${approvalBoxHtml(code, realSteps)}</td>
         </tr>
       </table>
     `;
@@ -402,7 +418,7 @@
   function renderVacationForm(data, editable, steps) {
     const d = data || {};
     const inp = (key, type, extra) => editable
-      ? `<input data-field="${key}" type="${type || 'text'}" value="${esc(d[key])}" ${extra || ''} />`
+      ? `<input data-field="${key}" ${typeAttrs(type)} value="${esc(d[key])}" ${extra || ''} />`
       : `<span>${esc(d[key]) || '-'}</span>`;
     const chk = (key, val, label) => {
       const checked = d[key] === val ? 'checked' : '';
@@ -473,7 +489,7 @@
         if (k === 'amount' || k === 'unit_price') {
           return `<td><input class="money-input" data-row="${idx}" data-col="${k}" type="text" inputmode="numeric" value="${val ? fmtNum(val) : ''}" /></td>`;
         }
-        return `<td><input data-row="${idx}" data-col="${k}" type="${type}" value="${esc(val)}" /></td>`;
+        return `<td><input data-row="${idx}" data-col="${k}" ${typeAttrs(type)} value="${esc(val)}" /></td>`;
       }).join('');
       const amountCell = code === 'purchase'
         ? `<td>${fmtNum((Number(it.qty) || 0) * (Number(it.unit_price) || 0))}</td>`
@@ -531,7 +547,7 @@
     const d = data || { items: [] };
     const { html: tableHtml } = itemsTableHtml('purchase', d, editable);
     const inp = (key, type) => editable
-      ? `<input data-field="${key}" type="${type || 'text'}" value="${esc(d[key])}" />`
+      ? `<input data-field="${key}" ${typeAttrs(type)} value="${esc(d[key])}" />`
       : `<span>${esc(d[key]) || '-'}</span>`;
     return `
       <div class="paper-form">
@@ -650,6 +666,10 @@
   function attachFormListeners() {
     const container = document.getElementById('form-render');
 
+    container.querySelectorAll('.date-input').forEach((el) => {
+      el.addEventListener('input', () => { el.value = formatDateDigits(el.value); });
+    });
+
     container.querySelectorAll('[data-field]').forEach((el) => {
       const handler = () => { formData[el.dataset.field] = el.value; };
       el.addEventListener('input', handler);
@@ -721,6 +741,11 @@
     const btn = document.getElementById('save-btn');
     if (!validateForm()) {
       return showMsg('new-msg', '필수 항목을 입력해주세요.', false);
+    }
+    const datesToCheck = [formData.request_date, formData.start_date, formData.end_date]
+      .concat((formData.items || []).map((it) => it.date));
+    if (datesToCheck.some((v) => !isValidDateStr(v))) {
+      return showMsg('new-msg', '날짜는 YYYY-MM-DD 형식으로 정확히 입력해주세요 (예: 2026-08-13).', false);
     }
 
     const title = `${DOC_DEFS[currentDocCode].name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
@@ -867,15 +892,23 @@
     }
   }
 
-  async function editRejectedDoc(document_id) {
-    if (!confirm('반려된 문서를 수정하시겠습니까? 수정 후 다시 상신해야 합니다.')) return;
-    const res = await fetch('/api/documents/reopen', {
-      method: 'POST',
-      headers: authHeaders(true),
-      body: JSON.stringify({ document_id }),
-    });
-    const data = await res.json();
-    if (!res.ok) return alert(data.error || '처리 중 오류가 발생했습니다.');
+  async function editMyDocument(document_id, status) {
+    const confirmMsg = status === 'pending'
+      ? '결재 진행 중인 문서를 회수해서 수정하시겠습니까?\n수정 후 다시 상신해야 하며, 결재선은 처음부터 다시 만들어집니다.'
+      : status === 'rejected'
+        ? '반려된 문서를 수정하시겠습니까? 수정 후 다시 상신해야 합니다.'
+        : '이 문서를 수정하시겠습니까?';
+    if (!confirm(confirmMsg)) return;
+
+    if (status !== 'draft') {
+      const res = await fetch('/api/documents/reopen', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ document_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || '처리 중 오류가 발생했습니다.');
+    }
 
     const info = draftStore[document_id];
     if (!info) return alert('문서 정보를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
@@ -893,7 +926,9 @@
 
     buildDoctypePicker();
     renderCurrentForm();
-    showMsg('new-msg', '반려된 문서를 불러왔습니다. 내용을 수정한 뒤 다시 상신해주세요.', true);
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-list').textContent = '기존 첨부파일은 그대로 유지되고, 새로 선택한 파일만 추가됩니다.';
+    showMsg('new-msg', '문서를 불러왔습니다. 내용을 수정한 뒤 "저장하고 미리보기"로 다시 상신해주세요.', true);
   }
 
   const statusLabel = { draft: '임시저장', pending: '진행중', approved: '승인완료', rejected: '반려' };
@@ -998,7 +1033,7 @@
           </div>
           <div style="margin-top:12px; display:flex; gap:8px;">
             ${d.status === 'draft' ? `<button class="approve" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
-            ${d.status === 'rejected' ? `<button class="approve" onclick="editRejectedDoc('${d.id}')">수정하기</button>` : ''}
+            ${['draft', 'pending', 'rejected'].includes(d.status) ? `<button class="approve" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
             ${canDelete ? `<button class="reject" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
           </div>
           </div>

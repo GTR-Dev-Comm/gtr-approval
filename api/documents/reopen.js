@@ -1,5 +1,9 @@
 const { getSupabase, requireAuth } = require('../_lib');
 
+// 작성자가 본인 문서를 "수정하기" 위해 임시저장 상태로 되돌리는 API
+//  - 반려된 문서: 언제든 가능
+//  - 결재 진행중인 문서: 아직 아무도 결재(승인/반려)하지 않았을 때만 가능 (회수)
+//  - 승인완료된 문서: 불가
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
@@ -22,12 +26,31 @@ module.exports = async (req, res) => {
   if (doc.drafter_id !== payload.sub) {
     return res.status(403).json({ error: '본인이 작성한 문서만 수정할 수 있습니다.' });
   }
-  if (doc.status !== 'rejected') {
-    return res.status(409).json({ error: '반려된 문서만 이 방법으로 수정할 수 있습니다.' });
+  if (doc.status === 'draft') {
+    return res.status(200).json({ message: '이미 수정 가능한 상태입니다.' });
+  }
+  if (doc.status === 'approved') {
+    return res.status(409).json({ error: '최종 승인된 문서는 수정할 수 없습니다.' });
   }
 
-  // 기존 결재 이력을 지우고 임시저장 상태로 되돌립니다 (다시 상신하면 결재라인이 새로 생성됩니다)
+  if (doc.status === 'pending') {
+    const { data: steps } = await supabase
+      .from('approval_steps')
+      .select('status')
+      .eq('document_id', document_id);
+    const alreadyActed = (steps || []).some((s) => s.status === 'approved' || s.status === 'rejected');
+    if (alreadyActed) {
+      return res.status(409).json({
+        error: '이미 결재가 진행된 문서라 직접 수정할 수 없습니다. 결재자에게 반려를 요청하면 반려 후 수정할 수 있습니다.',
+      });
+    }
+  } else if (doc.status !== 'rejected') {
+    return res.status(409).json({ error: '수정할 수 없는 상태의 문서입니다.' });
+  }
+
+  // 기존 결재 이력/알림을 지우고 임시저장 상태로 되돌립니다 (다시 상신하면 결재라인이 새로 생성됩니다)
   await supabase.from('approval_steps').delete().eq('document_id', document_id);
+  await supabase.from('approval_notifications').delete().eq('document_id', document_id);
 
   const { error: updateErr } = await supabase
     .from('approval_documents')
