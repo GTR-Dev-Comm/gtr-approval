@@ -876,25 +876,42 @@
   // ---------- 내 문서 ----------
   const draftStore = {};
 
-  async function submitDraft(document_id) {
+  async function submitDraft(document_id, btnEl) {
     const d = draftStore[document_id];
     if (!d) return;
-    const res = await fetch('/api/documents/create', {
-      method: 'POST',
-      headers: authHeaders(true),
-      body: JSON.stringify({
-        doc_type_code: d.doc_type_code,
-        title: d.title,
-        content: d.content,
-        action: 'submit',
-        document_id,
-      }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      loadMyDocuments();
-    } else {
-      alert(data.error || '상신 중 오류가 발생했습니다.');
+    if (!confirm('이 문서를 상신하시겠습니까?\n상신하면 결재가 시작되어 내용을 수정할 수 없습니다.')) return;
+
+    let originalText = '';
+    if (btnEl) {
+      originalText = btnEl.textContent;
+      btnEl.disabled = true;
+      btnEl.textContent = '상신 중...';
+    }
+    try {
+      const res = await fetch('/api/documents/create', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          doc_type_code: d.doc_type_code,
+          title: d.title,
+          content: d.content,
+          action: 'submit',
+          document_id,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        loadMyDocuments();
+      } else {
+        alert(data.error || '상신 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      alert('네트워크 오류가 발생했습니다.');
+    } finally {
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.textContent = originalText;
+      }
     }
   }
 
@@ -1075,7 +1092,7 @@
           ${rejectionHtml}
           ${stepChipsHtml(d.steps)}
           <div style="margin-top:12px; display:flex; gap:8px;">
-            ${d.status === 'draft' ? `<button class="approve fulfill-btn" onclick="submitDraft('${d.id}')">상신하기</button>` : ''}
+            ${d.status === 'draft' ? `<button class="approve fulfill-btn" onclick="submitDraft('${d.id}', this)">상신하기</button>` : ''}
             ${['draft', 'rejected'].includes(d.status) ? `<button class="approve fulfill-btn" onclick="editMyDocument('${d.id}', '${d.status}')">수정하기</button>` : ''}
             ${canDelete ? `<button class="reject fulfill-btn" onclick="deleteMyDocument('${d.id}')">삭제</button>` : ''}
           </div>
