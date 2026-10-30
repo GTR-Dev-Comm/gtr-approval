@@ -34,8 +34,8 @@ async function buildStepPlan(supabase, drafter) {
 
   const stepPlan = [];
 
-  // 1) 담당팀장 (없으면 이 단계는 건너뜀)
-  const teamLeader = await findTeamLeader(drafter.department_id, drafter.id);
+  // 1) 담당팀장 (없으면 이 단계는 건너뜀 / 개발이사 라인(A그룹)은 팀장을 거치지 않고 바로 개발이사로)
+  const teamLeader = approvalGroup === 'A' ? null : await findTeamLeader(drafter.department_id, drafter.id);
   if (teamLeader) {
     stepPlan.push({ step_name: '담당팀장 승인', approver: teamLeader });
   }
