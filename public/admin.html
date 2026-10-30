@@ -72,6 +72,11 @@
   <p class="sub">상태와 관계없이 모든 문서를 삭제할 수 있습니다 (관리자 전용). 삭제하면 되돌릴 수 없습니다.</p>
   <div id="doc-list"></div>
 
+  <div class="section-title">결재 진행 점검</div>
+  <p class="sub">"결재할 문서에 안 뜬다"는 문의가 있을 때, 개발이사 지정 현황과 결재 진행중인 문서의 결재선(누구 차례인지, 계정이 활성화되어 있는지)을 한 번에 확인합니다.</p>
+  <button class="approve" onclick="runDiagnose()">점검하기</button>
+  <div id="diag-result" style="margin-top:14px;"></div>
+
   <div class="section-title">비밀번호 초기화</div>
   <p class="sub">아이디/비밀번호를 잊어버린 직원을 검색해서 비밀번호를 새로 지정할 수 있습니다.</p>
   <input id="emp-search" placeholder="이름, 아이디, 전화번호로 검색" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; margin-bottom:12px; box-sizing:border-box;" />
@@ -383,6 +388,58 @@
     if (res.ok) loadEmployees();
     else alert(data.error || '처리 중 오류가 발생했습니다.');
   }
+
+  async function runDiagnose() {
+    const el = document.getElementById('diag-result');
+    el.innerHTML = '<div class="empty" style="padding:20px 0;">점검 중...</div>';
+    const res = await fetch('/api/admin/diagnose', { headers: { Authorization: 'Bearer ' + token } });
+    const data = await res.json();
+    if (!res.ok) { el.innerHTML = '<div class="empty" style="padding:20px 0;">' + (data.error || '점검에 실패했습니다.') + '</div>'; return; }
+
+    const stepLabel = { pending: '대기', waiting: '결재중', approved: '승인', rejected: '반려' };
+    const warn = (t) => `<div class="meta" style="color:var(--red); margin-top:4px;">⚠ ${t}</div>`;
+    const dirs = data.directors || [];
+    let html = '';
+
+    // 1) 개발이사 지정 현황
+    let dirWarn = '';
+    if (dirs.length === 0) dirWarn = warn('개발이사로 지정된 직원이 없습니다. 개발이사 단계는 마스터가 대신 받게 됩니다.');
+    else if (dirs.length > 1) dirWarn = warn('개발이사가 2명 이상 지정되어 있으면 결재선 생성이 꼬여 마스터로 대체될 수 있습니다. 한 명만 지정해주세요.');
+    else if (!dirs[0].login_id) dirWarn = warn('개발이사 계정이 아직 활성화(최초 설정)되지 않았습니다.');
+    html += `<div class="row"><div class="info"><b>개발이사 지정 현황 (${dirs.length}명)</b>
+      <div class="meta">${dirs.map((d) => `${d.name} · ${d.login_id ? '아이디 ' + d.login_id : '계정 미설정'}${d.is_active ? '' : ' · 비활성'}`).join('<br/>') || '없음'}</div>${dirWarn}</div></div>`;
+
+    // 2) 결재 진행중 문서별 결재선
+    const docs = data.documents || [];
+    if (docs.length === 0) html += '<div class="empty" style="padding:20px 0;">결재 진행중인 문서가 없습니다.</div>';
+    docs.forEach((d) => {
+      const drafter = d.approval_employees || {};
+      const dept = drafter.approval_departments || {};
+      const type = d.approval_doc_types ? d.approval_doc_types.name : '';
+      const steps = d.steps || [];
+      const notes = [];
+      if (!drafter.department_id) notes.push('작성자 부서가 지정되어 있지 않아 개발이사 결재선이 만들어지지 않았을 수 있습니다.');
+      if (dept.approval_group === 'A' && !steps.some((s) => (s.step_name || '').startsWith('개발이사'))) {
+        notes.push('개발이사 라인 부서인데 개발이사 단계가 없습니다.');
+      }
+      const current = steps.find((s) => s.status === 'waiting');
+      const lines = steps.map((s) => {
+        const a = s.approval_employees || {};
+        const isMaster = a.login_id && a.login_id === data.master_login_id;
+        const flags = [];
+        if (!a.login_id) flags.push('계정 미설정');
+        if (isMaster) flags.push('마스터 대체');
+        if (s.step_name.startsWith('개발이사') && !a.is_dev_director) notes.push('개발이사 단계 결재자(' + (a.name || '?') + ')가 개발이사로 지정된 직원이 아닙니다.');
+        return `${s.step_order}. ${s.step_name} — ${a.name || '?'} [${stepLabel[s.status] || s.status}]${flags.length ? ' <span style="color:var(--red);">(' + flags.join(', ') + ')</span>' : ''}`;
+      });
+      html += `<div class="row"><div class="info"><b>${type} · ${drafter.name || ''} (${dept.name || '부서 없음'}${dept.approval_group === 'A' ? ', 개발이사 라인' : ''})</b>
+        <div class="meta">지금 차례: ${current ? current.step_name + ' — ' + ((current.approval_employees || {}).name || '?') : '없음'}</div>
+        <div class="meta" style="margin-top:4px;">${lines.join('<br/>')}</div>
+        ${notes.map(warn).join('')}</div></div>`;
+    });
+    el.innerHTML = html;
+  }
+
   async function deleteEmployee(employee_id, name) {
     if (!confirm(`${name}님 계정을 완전히 삭제하시겠습니까?\n(작성했거나 결재했던 문서가 있으면 삭제가 거부됩니다. 되돌릴 수 없습니다.)`)) return;
     const res = await fetch('/api/admin/delete-employee', {
