@@ -1149,22 +1149,37 @@
 
     data.pending.forEach((s) => {
       const doc = s.approval_documents;
-      if (doc) loadAttachments(doc.id, 'att-approve-' + doc.id);
+      if (doc) {
+        const isExpense = doc.approval_doc_types && doc.approval_doc_types.code === 'expense';
+        loadAttachments(doc.id, 'att-approve-' + doc.id, isExpense ? '첨부된 영수증이 없습니다.' : '');
+      }
     });
   }
 
-  async function loadAttachments(document_id, containerId) {
+  // emptyMsg: 첨부파일이 하나도 없을 때 보여줄 안내 문구 (없으면 아무것도 표시하지 않음)
+  async function loadAttachments(document_id, containerId, emptyMsg) {
     const el = document.getElementById(containerId || ('att-' + document_id));
     if (!el) return;
+    const emptyHtml = emptyMsg
+      ? `<div style="flex-basis:100%; font-size:12px; color:#9aa79e;">${emptyMsg}</div>`
+      : '';
     try {
       const res = await fetch('/api/attachments/list?document_id=' + document_id, { headers: authHeaders() });
       const data = await res.json();
-      if (!res.ok || !data.attachments || data.attachments.length === 0) {
-        el.innerHTML = '';
+      if (!res.ok) {
+        el.innerHTML = emptyMsg ? '<div style="flex-basis:100%; font-size:12px; color:var(--red);">첨부파일을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.</div>' : '';
         return;
       }
-      el.innerHTML = data.attachments.map((a) => {
-        if (a.file_type === 'image' && a.url) {
+      if (!data.attachments || data.attachments.length === 0) {
+        el.innerHTML = emptyHtml;
+        return;
+      }
+      const header = `<div style="flex-basis:100%; font-size:12px; font-weight:700; color:#4c6a58;">첨부파일 (${data.attachments.length}) · 사진을 누르면 크게 열립니다</div>`;
+      el.innerHTML = header + data.attachments.map((a) => {
+        if (!a.url) {
+          return `<span class="att-chip" style="color:var(--red);">⚠ ${a.file_name} (불러오기 실패)</span>`;
+        }
+        if (a.file_type === 'image') {
           return `<a href="${a.url}" target="_blank" rel="noopener" style="display:block;">
             <img src="${a.url}" alt="${a.file_name}" style="width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
           </a>`;
