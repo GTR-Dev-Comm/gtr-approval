@@ -105,10 +105,18 @@
     border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; margin-bottom: 10px; background: #fff;
   }
   .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 0; cursor: pointer; min-height: 30px; }
-  .doc-top .doc-title { flex: 1; }
+  .doc-top .doc-title { flex: 1; min-width: 0; }
   .chev { color: #9aa79e; font-size: 11px; margin-left: 6px; }
   .doc-detail { margin-top: 10px; }
   .doc-title { font-size: 13px; font-weight: 700; }
+  .doc-line1 { display: flex; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.5; }
+  .doc-line2 { font-size: 13px; font-weight: 500; color: #4c6a58; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .doc-line2 b { color: var(--ink); font-weight: 800; }
+  .sep { color: #b3bdb6; margin: 0 7px; font-weight: 400; }
+  .type-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+  .type-expense { background: #e7f0e9; color: #1f4d3a; }
+  .type-purchase { background: #e3ecfb; color: #2a57a5; }
+  .type-other { background: #eef0ee; color: #6b7a71; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
   .badge.draft { background: #eef0ee; color: #6b7a71; }
   .badge.fulfill-pending { background: #fdeee0; color: #b5641f; }
@@ -608,25 +616,43 @@
     return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
   }
 
-  function docSummaryLine(code, name, dateStr, content) {
-    const typeName = DOC_DEFS[code] ? DOC_DEFS[code].name : code;
-    const parts = [typeName, name || '', fmtDateShort(dateStr)];
+  function docTypeShort(code) {
+    if (code === 'expense') return '지출결의';
+    if (code === 'purchase') return '구매요청';
+    return DOC_DEFS[code] ? DOC_DEFS[code].name : code;
+  }
+
+  // 목록 한 칸의 두 줄 요약
+  //  1줄: 구분(지출결의/구매요청) / 상신날짜 / 작성자
+  //  2줄: 총 금액 / 내용
+  function docSummaryHtml(code, name, d, chevId) {
+    const content = d.content || {};
+    // 상신한 날짜(상신 시 기록됨). 이전에 상신된 문서는 작성일로 대체, 아직 상신 전이면 "미상신"
+    const submitted = d.status === 'draft' ? '미상신' : fmtDateShort(content._submitted_at || d.created_at);
+    const typeCls = code === 'expense' ? 'type-expense' : code === 'purchase' ? 'type-purchase' : 'type-other';
+    const sep = '<span class="sep">/</span>';
+    const chev = chevId ? `<span class="chev" id="${chevId}">▾</span>` : '';
+    const line1 = `<div class="doc-line1"><span class="type-pill ${typeCls}">${docTypeShort(code)}</span>${sep}${submitted}${sep}${escHtml(name || '')}${chev}</div>`;
+
+    let line2 = '';
     if (code === 'expense' || code === 'purchase') {
-      const items = (content && content.items) || [];
+      const items = content.items || [];
       let total = 0;
       let desc = '';
       if (code === 'expense') {
-        total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+        total = items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
         desc = items[0] ? (items[0].description || '') : '';
       } else {
-        total = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unit_price) || 0), 0);
+        total = items.reduce((sum, it) => sum + (Number(it.qty) || 0) * (Number(it.unit_price) || 0), 0);
         desc = items[0] ? (items[0].item_name || '') : '';
       }
       if (items.length > 1) desc = desc ? `${desc} 외 ${items.length - 1}건` : `${items.length}건`;
-      parts.push(fmtNum(total) + '원');
-      if (desc) parts.push(desc);
+      line2 = `<div class="doc-line2"><b>${fmtNum(total)}원</b>${desc ? sep + escHtml(desc) : ''}</div>`;
+    } else {
+      const period = [content.start_date, content.end_date].filter(Boolean).join(' ~ ');
+      line2 = `<div class="doc-line2">${escHtml([content.vacation_type, period].filter(Boolean).join(' / '))}</div>`;
     }
-    return parts.filter(Boolean).join(' · ');
+    return line1 + line2;
   }
 
   // ---------- 새 문서 작성 상태 ----------
@@ -1244,7 +1270,7 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('my-detail-${d.id}')">
-            <div class="doc-title">${docSummaryLine(code, employee.name, d.created_at, d.content)}<span class="chev" id="chev-my-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryHtml(code, employee.name, d, 'chev-my-detail-' + d.id)}</div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('my-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
@@ -1293,7 +1319,7 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('approve-detail-${s.id}')">
-            <div class="doc-title">${doc ? docSummaryLine(code, drafterName, doc.created_at, doc.content) : ''}<span class="chev" id="chev-approve-detail-${s.id}">▾</span></div>
+            <div class="doc-title">${doc ? docSummaryHtml(code, drafterName, doc, 'chev-approve-detail-' + s.id) : ''}</div>
             <div style="display:flex; align-items:center; gap:8px;">
               ${doc ? `<button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('approve-${doc.id}')">인쇄</button>` : ''}
               <div class="badge pending">${s.step_name}</div>
@@ -1464,7 +1490,7 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('fulfill-detail-${d.id}')">
-            <div class="doc-title">${docSummaryLine(code, drafterName, d.created_at, d.content)}<span class="chev" id="chev-fulfill-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryHtml(code, drafterName, d, 'chev-fulfill-detail-' + d.id)}</div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('fulfill-${d.id}')">인쇄</button>
               ${fulfillmentBadge(d)}
@@ -1503,7 +1529,7 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('history-detail-${d.id}')">
-            <div class="doc-title">${docSummaryLine(code, drafterName, d.created_at, d.content)}<span class="chev" id="chev-history-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryHtml(code, drafterName, d, 'chev-history-detail-' + d.id)}</div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('history-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>
@@ -1545,7 +1571,7 @@
       return `
         <div class="doc">
           <div class="doc-top" onclick="toggleDetail('scope-detail-${d.id}')">
-            <div class="doc-title">${docSummaryLine(code, drafterName, d.created_at, d.content)}<span class="chev" id="chev-scope-detail-${d.id}">▾</span></div>
+            <div class="doc-title">${docSummaryHtml(code, drafterName, d, 'chev-scope-detail-' + d.id)}</div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="ghost print-btn" onclick="event.stopPropagation(); printDoc('scope-${d.id}')">인쇄</button>
               <div class="badge ${d.status}">${statusLabel[d.status] || d.status}</div>

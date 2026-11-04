@@ -84,10 +84,12 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: '문서종류, 제목, 내용은 필수입니다.' });
   }
   const mode = action === 'draft' ? 'draft' : 'submit';
-  // 다시 상신할 때는 이전 반려 사유 표시(_reject)를 문서 내용에서 지웁니다 (임시저장 중에는 유지)
-  const cleanContent = (mode === 'submit' && content && content._reject)
-    ? Object.fromEntries(Object.entries(content).filter(([k]) => k !== '_reject'))
-    : content;
+  // 상신할 때: 이전 반려 사유 표시(_reject)를 지우고, 상신한 시각(_submitted_at)을 기록합니다. (임시저장 중에는 그대로 유지)
+  let cleanContent = content;
+  if (mode === 'submit' && content) {
+    cleanContent = Object.fromEntries(Object.entries(content).filter(([k]) => k !== '_reject'));
+    cleanContent._submitted_at = new Date().toISOString();
+  }
 
   const supabase = getSupabase();
 
