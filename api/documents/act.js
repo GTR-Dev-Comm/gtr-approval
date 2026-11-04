@@ -49,9 +49,20 @@ module.exports = async (req, res) => {
     .eq('id', step.id);
 
   if (action === 'reject') {
+    // 반려 사유를 문서 내용에 함께 보관해서, 작성자가 수정하는 중에도 계속 볼 수 있게 합니다.
+    const rejectInfo = {
+      reason: comment || '',
+      by: payload.name || '',
+      step_name: step.step_name,
+      at: new Date().toISOString(),
+    };
     await supabase
       .from('approval_documents')
-      .update({ status: 'rejected', updated_at: new Date().toISOString() })
+      .update({
+        status: 'rejected',
+        content: Object.assign({}, document.content || {}, { _reject: rejectInfo }),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', document.id);
 
     await supabase.from('approval_notifications').insert({

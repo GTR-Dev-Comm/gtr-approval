@@ -84,6 +84,10 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: '문서종류, 제목, 내용은 필수입니다.' });
   }
   const mode = action === 'draft' ? 'draft' : 'submit';
+  // 다시 상신할 때는 이전 반려 사유 표시(_reject)를 문서 내용에서 지웁니다 (임시저장 중에는 유지)
+  const cleanContent = (mode === 'submit' && content && content._reject)
+    ? Object.fromEntries(Object.entries(content).filter(([k]) => k !== '_reject'))
+    : content;
 
   const supabase = getSupabase();
 
@@ -123,7 +127,7 @@ module.exports = async (req, res) => {
     }
     const { data: updated, error: updateErr } = await supabase
       .from('approval_documents')
-      .update({ title, content, updated_at: new Date().toISOString() })
+      .update({ title, content: cleanContent, updated_at: new Date().toISOString() })
       .eq('id', document_id)
       .select()
       .single();
@@ -138,7 +142,7 @@ module.exports = async (req, res) => {
         doc_type_id: docType.id,
         drafter_id: drafter.id,
         title,
-        content,
+        content: cleanContent,
         status: 'draft',
         current_step: 0,
       })

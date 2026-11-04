@@ -180,6 +180,7 @@
 
   <!-- 새 문서 작성 -->
   <div class="panel active" id="panel-new">
+    <div id="reject-banner"></div>
     <div class="doctype-picker" id="doctype-picker"></div>
 
     <div id="form-render"></div>
@@ -265,6 +266,24 @@
     const h = { Authorization: 'Bearer ' + token };
     if (json) h['Content-Type'] = 'application/json';
     return h;
+  }
+  function escHtml(v) {
+    return (v === undefined || v === null) ? '' : String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  // 반려 사유 정보: 문서에 보관된 값 우선, 예전에 반려된 문서는 결재 기록(step)에서 찾음
+  function rejectInfo(d) {
+    const r = d.content && d.content._reject;
+    if (r) return { reason: r.reason || '', by: r.by || '', stepName: r.step_name || '' };
+    if (d.status === 'rejected') {
+      const st = (d.steps || []).find((x) => x.status === 'rejected');
+      if (st) return { reason: st.comment || '', by: st.approval_employees ? st.approval_employees.name : '', stepName: st.step_name || '' };
+    }
+    return null;
+  }
+  function rejectBoxHtml(r, title) {
+    return `<div style="padding:10px 12px; background:var(--red-soft); border-radius:8px; font-size:13px; color:var(--red);">
+      <b>${title}${r.by ? ' (' + escHtml(r.by) + ')' : ''}</b><br/>${escHtml(r.reason) || '입력된 사유가 없습니다.'}</div>`;
   }
   function esc(v) {
     return (v === undefined || v === null) ? '' : String(v).replace(/"/g, '&quot;');
@@ -658,7 +677,15 @@
     });
   }
 
+  function renderRejectBanner() {
+    const el = document.getElementById('reject-banner');
+    if (!el) return;
+    const r = formData && formData._reject;
+    el.innerHTML = r ? `<div style="margin-bottom:12px;">${rejectBoxHtml({ reason: r.reason, by: r.by }, '이 문서가 반려되었습니다 — 반려 사유')}</div>` : '';
+  }
+
   function renderCurrentForm() {
+    renderRejectBanner();
     const html = FORM_RENDERERS[currentDocCode](formData, true);
     document.getElementById('form-render').innerHTML = html;
     document.getElementById('attachment-area').style.display = currentDocCode === 'expense' ? 'block' : 'none';
@@ -951,6 +978,9 @@
 
     currentDocCode = info.doc_type_code;
     formData = JSON.parse(JSON.stringify(info.content || {}));
+    if (info.reject && !formData._reject) {
+      formData._reject = { reason: info.reject.reason, by: info.reject.by, step_name: info.reject.stepName };
+    }
     draftDocumentId = document_id;
     filesUploaded = false;
     selectedFiles = [];
@@ -1068,13 +1098,13 @@
       const renderer = FORM_RENDERERS[code];
       const formHtml = renderer ? renderer(d.content, false, d.steps) : '';
       printStore['my-' + d.id] = formHtml;
-      draftStore[d.id] = { doc_type_code: code, title: d.title, content: d.content };
+      draftStore[d.id] = { doc_type_code: code, title: d.title, content: d.content, reject: rejectInfo(d) };
       const canDelete = d.status === 'draft' || d.status === 'rejected';
-      const rejectedStep = (d.steps || []).find((s) => s.status === 'rejected');
-      const rejectionHtml = (d.status === 'rejected' && rejectedStep)
-        ? `<div style="margin-top:10px; padding:10px 12px; background:var(--red-soft); border-radius:8px; font-size:12px; color:var(--red);">
-             <b>반려 사유 (${rejectedStep.step_name})</b><br/>${esc(rejectedStep.comment) || '입력된 사유가 없습니다.'}
-           </div>`
+      const rj = (d.status === 'rejected' || d.status === 'draft') ? rejectInfo(d) : null;
+      const rejectTitle = d.status === 'draft' ? '이전 반려 사유' : '반려 사유';
+      const rejectionHtml = rj ? `<div style="margin-top:10px;">${rejectBoxHtml(rj, rejectTitle)}</div>` : '';
+      const rejectLine = rj
+        ? `<div style="margin:2px 0 6px; font-size:12px; color:var(--red);">${rejectTitle}${rj.by ? ' (' + escHtml(rj.by) + ')' : ''}: ${escHtml(rj.reason) || '입력된 사유가 없습니다.'}</div>`
         : '';
       return `
         <div class="doc">
@@ -1086,6 +1116,7 @@
               ${fulfillmentBadge(d)}
             </div>
           </div>
+          ${rejectLine}
           <div id="my-detail-${d.id}" class="doc-detail" style="display:none;">
           ${formHtml}
           <div id="att-my-${d.id}" class="att-list"></div>
