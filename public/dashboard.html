@@ -187,6 +187,7 @@
     <div id="form-render"></div>
 
     <div id="attachment-area" class="card" style="display:none; margin-top:12px;">
+      <div id="existing-att" class="att-list" style="margin:0 0 14px;"></div>
       <label style="font-size:13px; font-weight:700; display:block; margin-bottom:8px;">영수증 첨부 (사진 또는 PDF, 여러 장 가능)</label>
       <input type="file" id="file-input" accept="image/jpeg,image/png,application/pdf" multiple />
       <div class="file-list" id="file-list"></div>
@@ -691,6 +692,7 @@
 
   function renderCurrentForm() {
     renderRejectBanner();
+    syncExistingAttachments(false);
     const html = FORM_RENDERERS[currentDocCode](formData, true);
     document.getElementById('form-render').innerHTML = html;
     document.getElementById('attachment-area').style.display = currentDocCode === 'expense' ? 'block' : 'none';
@@ -913,6 +915,7 @@
     draftDocumentId = data.document_id;
 
     const failed = await uploadPendingFiles();
+    syncExistingAttachments(true); // 방금 올린 파일도 "이미 첨부된 파일"에 표시
     if (failed.length > 0) {
       showMsg('new-msg', '첨부파일 업로드에 실패했습니다: ' + failed.map((f) => `${f.name} (${f.reason})`).join(', ')
         + ' — 문서는 임시저장되었습니다. 파일을 다시 선택해서 시도해주세요.', false);
@@ -1125,7 +1128,7 @@
     buildDoctypePicker();
     renderCurrentForm();
     document.getElementById('file-input').value = '';
-    document.getElementById('file-list').textContent = '기존 첨부파일은 그대로 유지되고, 새로 선택한 파일만 추가됩니다.';
+    document.getElementById('file-list').textContent = '';
     showMsg('new-msg', '문서를 불러왔습니다. 내용을 수정한 뒤 "저장하고 미리보기"로 다시 상신해주세요.', true);
   }
 
@@ -1319,6 +1322,29 @@
     });
   }
 
+  // 새 문서 작성/수정 화면의 "이미 첨부된 파일" 목록 (현재 작성 중인 문서가 바뀔 때만 다시 불러옴)
+  let attShownFor = null;
+  function syncExistingAttachments(force) {
+    if (!force && attShownFor === draftDocumentId) return;
+    attShownFor = draftDocumentId;
+    const el = document.getElementById('existing-att');
+    if (!el) return;
+    if (!draftDocumentId) { el.innerHTML = ''; return; }
+    loadAttachments(draftDocumentId, 'existing-att', '', true);
+  }
+
+  async function deleteAttachment(attachment_id) {
+    if (!confirm('이 첨부파일을 삭제하시겠습니까?')) return;
+    const res = await fetch('/api/attachments/delete', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({ attachment_id }),
+    });
+    const data = await res.json();
+    if (res.ok) syncExistingAttachments(true);
+    else alert(data.error || '삭제 중 오류가 발생했습니다.');
+  }
+
   // 이미지로 열리지 않는 첨부파일(예: PDF)은 파일명 링크로 대체
   function attImgFallback(img) {
     const a = img.parentElement;
@@ -1329,7 +1355,7 @@
   }
 
   // emptyMsg: 첨부파일이 하나도 없을 때 보여줄 안내 문구 (없으면 아무것도 표시하지 않음)
-  async function loadAttachments(document_id, containerId, emptyMsg) {
+  async function loadAttachments(document_id, containerId, emptyMsg, deletable) {
     const el = document.getElementById(containerId || ('att-' + document_id));
     if (!el) return;
     const emptyHtml = emptyMsg
@@ -1346,19 +1372,24 @@
         el.innerHTML = emptyHtml;
         return;
       }
-      const header = `<div style="flex-basis:100%; font-size:12px; font-weight:700; color:#4c6a58;">첨부파일 (${data.attachments.length}) · 사진을 누르면 크게 열립니다</div>`;
+      const header = deletable
+        ? `<div style="flex-basis:100%; font-size:12px; font-weight:700; color:#4c6a58;">이미 첨부된 파일 (${data.attachments.length}) · 필요 없는 파일은 삭제할 수 있습니다</div>`
+        : `<div style="flex-basis:100%; font-size:12px; font-weight:700; color:#4c6a58;">첨부파일 (${data.attachments.length}) · 사진을 누르면 크게 열립니다</div>`;
       el.innerHTML = header + data.attachments.map((a) => {
         const name = escHtml(a.file_name);
+        let core;
         if (!a.url) {
-          return `<span class="att-chip" style="color:var(--red);">⚠ ${name} (불러오기 실패)</span>`;
+          core = `<span class="att-chip" style="color:var(--red);">⚠ ${name} (불러오기 실패)</span>`;
+        } else if (a.file_type === 'pdf' || /\.pdf$/i.test(a.file_name || '')) {
+          core = `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">📄 ${name}</a>`;
+        } else {
+          core = `<a href="${a.url}" target="_blank" rel="noopener" style="display:block;">
+            <img src="${a.url}" alt="${name}" onerror="attImgFallback(this)" style="width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
+          </a>`;
         }
-        const isPdf = a.file_type === 'pdf' || /\.pdf$/i.test(a.file_name || '');
-        if (isPdf) {
-          return `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">📄 ${name}</a>`;
-        }
-        return `<a href="${a.url}" target="_blank" rel="noopener" style="display:block;">
-          <img src="${a.url}" alt="${name}" onerror="attImgFallback(this)" style="width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
-        </a>`;
+        if (!deletable) return core;
+        return `<div style="display:flex; flex-direction:column; align-items:flex-start; gap:3px;">${core}
+          <button type="button" class="row-del" style="font-size:12px;" onclick="deleteAttachment('${a.id}')">× 삭제</button></div>`;
       }).join('');
     } catch (e) {
       el.innerHTML = '';
