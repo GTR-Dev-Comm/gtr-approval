@@ -28,10 +28,12 @@ module.exports = async (req, res) => {
   // 버킷이 없으면 생성 (이미 있으면 에러가 나지만 무시)
   await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {});
 
-  const safeName = file_name.replace(/[^\w.\-가-힣]/g, '_');
-  const path = `expense/${document_id}/${Date.now()}-${safeName}`;
+  // 저장소 키는 영문/숫자만 사용 (한글 파일명 때문에 업로드가 실패하는 것을 방지). 원래 이름은 DB에만 보관.
+  const isPng = /\.png$/i.test(file_name);
+  const ext = file_type === 'pdf' ? 'pdf' : (isPng ? 'png' : 'jpg');
+  const path = `expense/${document_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  const contentType = file_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+  const contentType = file_type === 'pdf' ? 'application/pdf' : (isPng ? 'image/png' : 'image/jpeg');
   const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(path, buffer, {
     contentType,
     upsert: false,

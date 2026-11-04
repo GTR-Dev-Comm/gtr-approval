@@ -59,6 +59,7 @@
   button.act-btn:disabled { opacity: .4; cursor: not-allowed; }
   button.fulfill-btn { padding: 11px 22px; font-size: 14px; font-weight: 700; border-radius: 9px; }
   button.row-add { margin-top: 8px; }
+  button.row-ins { background: none; border: none; color: var(--green-deep); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; font-weight: 700; }
   button.row-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; }
 
   .file-list { font-size: 12px; color: #6b7a71; margin-top: 6px; }
@@ -192,7 +193,8 @@
     </div>
 
     <div style="display:flex; gap:8px; margin-top:14px;">
-      <button class="primary" id="save-btn">저장하고 미리보기</button>
+      <button class="ghost fulfill-btn" id="save-btn">저장하고 미리보기</button>
+      <button class="primary fulfill-btn" id="submit-now-btn">상신하기</button>
     </div>
     <div class="msg" id="new-msg"></div>
   </div>
@@ -209,6 +211,9 @@
         </div>
       </div>
       <div class="a4-page" id="preview-body"></div>
+      <div style="background:#fff; border-radius:8px; padding:12px 14px; margin-top:12px;">
+        <div id="preview-att" class="att-list" style="margin-top:0;"></div>
+      </div>
       <div class="msg" id="preview-msg" style="max-width:840px;"></div>
     </div>
   </div>
@@ -498,7 +503,7 @@
     }, 0);
 
     const extraCols = (code === 'purchase' ? 1 : 0) + (editable ? 1 : 0) + (verifyStepId ? 1 : 0);
-    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th${k === 'description' ? ' style="width:34%;"' : ''}>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:30px;"></th>' : ''}${verifyStepId ? '<th style="width:44px;">확인</th>' : ''}</tr>`;
+    let head = `<tr>${code === 'purchase' ? '<th style="width:36px;">No.</th>' : ''}${cols.map(([k, l]) => `<th${k === 'description' ? ' style="width:34%;"' : ''}>${l}</th>`).join('')}${code === 'purchase' ? '<th>금액</th>' : ''}${editable ? '<th style="width:64px;"></th>' : ''}${verifyStepId ? '<th style="width:44px;">확인</th>' : ''}</tr>`;
 
     let rows = items.map((it, idx) => {
       const cells = cols.map(([k, l, type]) => {
@@ -516,7 +521,7 @@
         ? `<td class="js-row-amount" data-idx="${idx}">${fmtNum((Number(it.qty) || 0) * (Number(it.unit_price) || 0))}</td>`
         : '';
       const noCell = code === 'purchase' ? `<td>${idx + 1}</td>` : '';
-      const delCell = editable ? `<td><button type="button" class="row-del" tabindex="-1" data-del-row="${idx}">×</button></td>` : '';
+      const delCell = editable ? `<td style="white-space:nowrap;"><button type="button" class="row-ins" tabindex="-1" title="이 줄 아래에 행 끼워 넣기" data-ins-after="${idx}">＋</button><button type="button" class="row-del" tabindex="-1" title="이 줄 삭제" data-del-row="${idx}">×</button></td>` : '';
       const verifyCell = verifyStepId
         ? `<td style="text-align:center;"><input type="checkbox" class="verify-item-cb" data-step="${verifyStepId}" onclick="event.stopPropagation(); updateVerifyState('${verifyStepId}')" /></td>`
         : '';
@@ -629,7 +634,7 @@
   let selectedFiles = [];
   let departmentList = [];
   let draftDocumentId = null;
-  let filesUploaded = false;
+  const uploadedKeys = new Set(); // 이미 업로드한 첨부파일 (중복 업로드 방지)
 
   async function loadDepartments() {
     try {
@@ -668,7 +673,7 @@
         formData = blankFormData();
         selectedFiles = [];
         draftDocumentId = null;
-        filesUploaded = false;
+        uploadedKeys.clear();
         document.getElementById('file-list').textContent = '';
         document.getElementById('file-input').value = '';
         buildDoctypePicker();
@@ -746,6 +751,16 @@
       });
     });
 
+    container.querySelectorAll('[data-ins-after]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const at = Number(el.dataset.insAfter) + 1;
+        formData.items.splice(at, 0, {}); // 해당 줄 바로 아래에 빈 행 끼워 넣기
+        renderCurrentForm();
+        const first = document.querySelector('#form-render [data-row="' + at + '"]');
+        if (first) first.focus();
+      });
+    });
+
     const addBtn = document.getElementById('add-row-btn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
@@ -785,60 +800,195 @@
     return (formData.items || []).length > 0;
   }
 
-  document.getElementById('save-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('save-btn');
-    if (!validateForm()) {
-      return showMsg('new-msg', '필수 항목을 입력해주세요.', false);
+  // ---------- 첨부파일 업로드 ----------
+  function fileKey(f) { return [f.name, f.size, f.lastModified].join('|'); }
+
+  // 파일 종류 판별: 브라우저가 종류를 못 알려주는 경우(file.type이 빈 값)에도 확장자로 판별
+  function detectFileKind(file) {
+    const name = (file.name || '').toLowerCase();
+    if (file.type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+    if ((file.type || '').startsWith('image/') || /\.(jpe?g|png)$/.test(name)) return 'image';
+    return null;
+  }
+
+  // 큰 PDF도 올라가도록 저장소로 직접 업로드하고, 안 되면(3MB 이하) 기존 방식으로 다시 시도합니다.
+  async function uploadAttachmentFile(file, documentId) {
+    const kind = detectFileKind(file);
+    if (!kind) throw new Error('사진(JPG/PNG) 또는 PDF만 첨부할 수 있습니다');
+    if (file.size > 20 * 1024 * 1024) throw new Error('파일 크기가 20MB를 넘습니다');
+
+    let directError = null;
+    try {
+      const r = await fetch('/api/attachments/upload-url', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ document_id: documentId, file_name: file.name, file_type: kind, file_size: file.size }),
+      });
+      const info = await r.json();
+      if (!r.ok) throw new Error(info.error || '업로드 주소를 받지 못했습니다');
+
+      const form = new FormData();
+      form.append('cacheControl', '3600');
+      form.append('', file);
+      const put = await fetch(info.signed_url, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: form });
+      if (!put.ok) throw new Error('저장소 업로드 실패 (' + put.status + ')');
+
+      const reg = await fetch('/api/attachments/register', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ document_id: documentId, path: info.path, file_name: file.name, file_type: kind, file_size: file.size }),
+      });
+      const regData = await reg.json();
+      if (!reg.ok) throw new Error(regData.error || '첨부파일 등록에 실패했습니다');
+      return;
+    } catch (e) {
+      directError = e;
     }
+
+    // 직접 업로드가 안 되면, 작은 파일은 기존 방식(서버 경유)으로 한 번 더 시도
+    if (file.size <= 3 * 1024 * 1024) {
+      const base64 = await fileToBase64(file);
+      const r2 = await fetch('/api/attachments/upload', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ document_id: documentId, file_name: file.name, file_type: kind, data_base64: base64 }),
+      });
+      if (r2.ok) return;
+      let msg = '';
+      try { msg = (await r2.json()).error; } catch (e2) { /* ignore */ }
+      throw new Error(msg || directError.message || '업로드 실패');
+    }
+    throw directError;
+  }
+
+  // 아직 올리지 않은 선택 파일을 모두 업로드. 실패한 파일 목록을 돌려줍니다.
+  async function uploadPendingFiles() {
+    const failed = [];
+    for (const file of selectedFiles) {
+      const key = fileKey(file);
+      if (uploadedKeys.has(key)) continue;
+      try {
+        await uploadAttachmentFile(file, draftDocumentId);
+        uploadedKeys.add(key);
+      } catch (e) {
+        failed.push({ name: file.name, reason: (e && e.message) || '알 수 없는 오류' });
+      }
+    }
+    return failed;
+  }
+
+  // ---------- 저장 / 미리보기 / 상신 ----------
+  function validateAll() {
+    if (!validateForm()) return '필수 항목을 입력해주세요.';
     const datesToCheck = [formData.request_date, formData.start_date, formData.end_date]
       .concat((formData.items || []).map((it) => it.date));
     if (datesToCheck.some((v) => !isValidDateStr(v))) {
-      return showMsg('new-msg', '날짜는 YYYY-MM-DD 형식으로 정확히 입력해주세요 (예: 2026-08-13).', false);
+      return '날짜는 YYYY-MM-DD 형식으로 정확히 입력해주세요 (예: 2026-08-13).';
     }
+    return '';
+  }
 
-    const title = `${DOC_DEFS[currentDocCode].name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
+  function currentTitle() {
+    return `${DOC_DEFS[currentDocCode].name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
+  }
 
-    btn.disabled = true;
+  // 임시저장 + 첨부파일 업로드. 모두 성공하면 true
+  async function saveDraftAndUpload() {
+    const err = validateAll();
+    if (err) { showMsg('new-msg', err, false); return false; }
+
+    const res = await fetch('/api/documents/create', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({
+        doc_type_code: currentDocCode,
+        title: currentTitle(),
+        content: formData,
+        action: 'draft',
+        document_id: draftDocumentId,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg('new-msg', data.error || '저장에 실패했습니다.', false); return false; }
+    draftDocumentId = data.document_id;
+
+    const failed = await uploadPendingFiles();
+    if (failed.length > 0) {
+      showMsg('new-msg', '첨부파일 업로드에 실패했습니다: ' + failed.map((f) => `${f.name} (${f.reason})`).join(', ')
+        + ' — 문서는 임시저장되었습니다. 파일을 다시 선택해서 시도해주세요.', false);
+      return false;
+    }
+    return true;
+  }
+
+  // 임시저장된 현재 문서를 상신. 성공하면 true
+  async function submitCurrentDraft(errorFn) {
+    const res = await fetch('/api/documents/create', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({
+        doc_type_code: currentDocCode,
+        title: currentTitle(),
+        content: formData,
+        action: 'submit',
+        document_id: draftDocumentId,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errorFn(data.error || '상신에 실패했습니다.'); return false; }
+    return true;
+  }
+
+  function resetAfterSubmit() {
+    draftDocumentId = null;
+    uploadedKeys.clear();
+    formData = blankFormData();
+    selectedFiles = [];
+    document.getElementById('file-list').textContent = '';
+    document.getElementById('file-input').value = '';
+    renderCurrentForm();
+  }
+
+  function setBusy(btns, busy, text) {
+    btns.forEach((b) => {
+      if (busy) { b.dataset.orig = b.textContent; b.textContent = text; b.disabled = true; }
+      else { if (b.dataset.orig) b.textContent = b.dataset.orig; b.disabled = false; }
+    });
+  }
+
+  // 저장하고 미리보기
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const btns = [document.getElementById('save-btn'), document.getElementById('submit-now-btn')];
+    setBusy(btns, true, '저장 중...');
     try {
-      const res = await fetch('/api/documents/create', {
-        method: 'POST',
-        headers: authHeaders(true),
-        body: JSON.stringify({
-          doc_type_code: currentDocCode,
-          title,
-          content: formData,
-          action: 'draft',
-          document_id: draftDocumentId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) return showMsg('new-msg', data.error || '저장에 실패했습니다.', false);
-      draftDocumentId = data.document_id;
-
-      if (!filesUploaded) {
-        for (const file of selectedFiles) {
-          const base64 = await fileToBase64(file);
-          const fileType = file.type === 'application/pdf' ? 'pdf' : 'image';
-          await fetch('/api/attachments/upload', {
-            method: 'POST',
-            headers: authHeaders(true),
-            body: JSON.stringify({
-              document_id: draftDocumentId,
-              file_name: file.name,
-              file_type: fileType,
-              data_base64: base64,
-            }),
-          });
-        }
-        filesUploaded = true;
+      if (await saveDraftAndUpload()) {
+        document.getElementById('new-msg').className = 'msg';
+        openPreview();
       }
-
-      document.getElementById('new-msg').className = 'msg';
-      openPreview();
     } catch (e) {
       showMsg('new-msg', '네트워크 오류가 발생했습니다.', false);
     } finally {
-      btn.disabled = false;
+      setBusy(btns, false);
+    }
+  });
+
+  // 미리보기 없이 바로 상신하기 (저장 + 첨부 업로드 + 상신)
+  document.getElementById('submit-now-btn').addEventListener('click', async () => {
+    const err = validateAll();
+    if (err) return showMsg('new-msg', err, false);
+    if (!confirm('이 문서를 바로 상신하시겠습니까?\n상신하면 결재가 시작되어 내용을 수정할 수 없습니다.')) return;
+
+    const btns = [document.getElementById('save-btn'), document.getElementById('submit-now-btn')];
+    setBusy(btns, true, '상신 중...');
+    try {
+      if (!(await saveDraftAndUpload())) return;
+      if (!(await submitCurrentDraft((m) => showMsg('new-msg', m, false)))) return;
+      showMsg('new-msg', '상신이 완료되었습니다.', true);
+      resetAfterSubmit();
+    } catch (e) {
+      showMsg('new-msg', '네트워크 오류가 발생했습니다.', false);
+    } finally {
+      setBusy(btns, false);
     }
   });
 
@@ -847,6 +997,8 @@
     document.getElementById('preview-body').innerHTML = html;
     document.getElementById('preview-modal').style.display = 'flex';
     document.getElementById('preview-msg').className = 'msg';
+    // 첨부파일(영수증)도 미리보기에 함께 표시
+    loadAttachments(draftDocumentId, 'preview-att', currentDocCode === 'expense' ? '첨부된 영수증이 없습니다.' : '');
   }
 
   document.getElementById('preview-print-btn').addEventListener('click', () => {
@@ -861,40 +1013,20 @@
   document.getElementById('preview-submit-btn').addEventListener('click', async () => {
     if (!draftDocumentId) return;
     const btn = document.getElementById('preview-submit-btn');
-    const title = `${DOC_DEFS[currentDocCode].name} - ${employee.name} - ${new Date().toLocaleDateString('ko-KR')}`;
+    const showErr = (m) => {
+      const el = document.getElementById('preview-msg');
+      el.textContent = m;
+      el.className = 'msg show error';
+    };
     btn.disabled = true;
     try {
-      const res = await fetch('/api/documents/create', {
-        method: 'POST',
-        headers: authHeaders(true),
-        body: JSON.stringify({
-          doc_type_code: currentDocCode,
-          title,
-          content: formData,
-          action: 'submit',
-          document_id: draftDocumentId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        const el = document.getElementById('preview-msg');
-        el.textContent = data.error || '상신에 실패했습니다.';
-        el.className = 'msg show error';
-        return;
+      if (await submitCurrentDraft(showErr)) {
+        document.getElementById('preview-modal').style.display = 'none';
+        showMsg('new-msg', '상신이 완료되었습니다.', true);
+        resetAfterSubmit();
       }
-      document.getElementById('preview-modal').style.display = 'none';
-      showMsg('new-msg', '상신이 완료되었습니다.', true);
-      draftDocumentId = null;
-      filesUploaded = false;
-      formData = blankFormData();
-      selectedFiles = [];
-      document.getElementById('file-list').textContent = '';
-      document.getElementById('file-input').value = '';
-      renderCurrentForm();
     } catch (e) {
-      const el = document.getElementById('preview-msg');
-      el.textContent = '네트워크 오류가 발생했습니다.';
-      el.className = 'msg show error';
+      showErr('네트워크 오류가 발생했습니다.');
     } finally {
       btn.disabled = false;
     }
@@ -982,7 +1114,7 @@
       formData._reject = { reason: info.reject.reason, by: info.reject.by, step_name: info.reject.stepName };
     }
     draftDocumentId = document_id;
-    filesUploaded = false;
+    uploadedKeys.clear();
     selectedFiles = [];
 
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
@@ -1187,6 +1319,15 @@
     });
   }
 
+  // 이미지로 열리지 않는 첨부파일(예: PDF)은 파일명 링크로 대체
+  function attImgFallback(img) {
+    const a = img.parentElement;
+    if (!a) return;
+    a.className = 'att-chip';
+    a.style.display = '';
+    a.textContent = '📄 ' + (img.alt || '첨부파일');
+  }
+
   // emptyMsg: 첨부파일이 하나도 없을 때 보여줄 안내 문구 (없으면 아무것도 표시하지 않음)
   async function loadAttachments(document_id, containerId, emptyMsg) {
     const el = document.getElementById(containerId || ('att-' + document_id));
@@ -1207,15 +1348,17 @@
       }
       const header = `<div style="flex-basis:100%; font-size:12px; font-weight:700; color:#4c6a58;">첨부파일 (${data.attachments.length}) · 사진을 누르면 크게 열립니다</div>`;
       el.innerHTML = header + data.attachments.map((a) => {
+        const name = escHtml(a.file_name);
         if (!a.url) {
-          return `<span class="att-chip" style="color:var(--red);">⚠ ${a.file_name} (불러오기 실패)</span>`;
+          return `<span class="att-chip" style="color:var(--red);">⚠ ${name} (불러오기 실패)</span>`;
         }
-        if (a.file_type === 'image') {
-          return `<a href="${a.url}" target="_blank" rel="noopener" style="display:block;">
-            <img src="${a.url}" alt="${a.file_name}" style="width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
-          </a>`;
+        const isPdf = a.file_type === 'pdf' || /\.pdf$/i.test(a.file_name || '');
+        if (isPdf) {
+          return `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">📄 ${name}</a>`;
         }
-        return `<a class="att-chip" href="${a.url}" target="_blank" rel="noopener">📄 ${a.file_name}</a>`;
+        return `<a href="${a.url}" target="_blank" rel="noopener" style="display:block;">
+          <img src="${a.url}" alt="${name}" onerror="attImgFallback(this)" style="width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
+        </a>`;
       }).join('');
     } catch (e) {
       el.innerHTML = '';
